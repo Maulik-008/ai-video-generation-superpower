@@ -1,0 +1,225 @@
+{
+  "title": "एक शांत माफ़ी",
+  "slug": "demo-quiet-apology-hi",
+  "aspect": "vertical",
+  "resolution": "720p",
+  "look": {
+    "captions": {
+      "position": "top",
+      "size": 0.034
+    }
+  },
+  "characters": [
+    {
+      "id": "mira",
+      "name": "Mira",
+      "kind": "human",
+      "pose": "sit",
+      "look": {
+        "hairStyle": "bob",
+        "hair": "#4a3326",
+        "skin": "#e0b08c",
+        "outfit": "#6b8fb5"
+      },
+      "voice": {
+        "engine": "auto",
+        "delivery": "calm",
+        "edge": "hi-IN-SwaraNeural",
+        "gender": "female",
+        "kokoro": "hf_alpha",
+        "language": "hi"
+      },
+      "captionColor": "#ffffff"
+    },
+    {
+      "id": "pip",
+      "name": "Pip",
+      "kind": "blob",
+      "look": {
+        "body": "#e8b04a",
+        "accent": "#f6dcae"
+      },
+      "voice": {
+        "engine": "auto",
+        "delivery": "calm",
+        "edge": "hi-IN-MadhurNeural",
+        "gender": "male",
+        "kokoro": "hm_omega",
+        "language": "hi"
+      },
+      "captionColor": "#ffd9a0"
+    }
+  ],
+  "shots": [
+    {
+      "id": "s01",
+      "set": "cozy-room",
+      "camera": {
+        "type": "two-shot",
+        "move": "push-in"
+      },
+      "reactions": {
+        "mira": "sad",
+        "pip": "neutral"
+      },
+      "lead": 0.5,
+      "lines": [
+        {
+          "speaker": "mira",
+          "text": "माफ़ करना, आज मैंने तुम पर चिल्ला दिया।",
+          "emotion": "sad",
+          "pause": 0.3
+        }
+      ]
+    },
+    {
+      "id": "s02",
+      "camera": {
+        "type": "close",
+        "focus": "pip",
+        "move": "push-in"
+      },
+      "lines": [
+        {
+          "speaker": "pip",
+          "text": "मुझे पता है। तुम बहुत बोझ उठा रही थीं।",
+          "emotion": "neutral",
+          "pause": 0.3
+        }
+      ]
+    },
+    {
+      "id": "s03",
+      "camera": {
+        "type": "close",
+        "focus": "mira",
+        "move": "static"
+      },
+      "lines": [
+        {
+          "speaker": "mira",
+          "text": "यह कोई बहाना नहीं है।",
+          "emotion": "sad",
+          "pause": 0.3
+        }
+      ]
+    },
+    {
+      "id": "s04",
+      "camera": {
+        "type": "medium",
+        "focus": "pip",
+        "move": "drift-right"
+      },
+      "lines": [
+        {
+          "speaker": "pip",
+          "text": "नहीं। पर यह एक वजह ज़रूर है।",
+          "emotion": "happy",
+          "pause": 0.3
+        }
+      ]
+    },
+    {
+      "id": "s05",
+      "camera": {
+        "type": "close",
+        "focus": "mira",
+        "move": "push-in"
+      },
+      "lines": [
+        {
+          "speaker": "mira",
+          "text": "मुझे बस एक अच्छा दिन चाहिए था।",
+          "emotion": "tired",
+          "action": "slump",
+          "pause": 0.3
+        }
+      ]
+    },
+    {
+      "id": "s06",
+      "camera": {
+        "type": "close",
+        "focus": "pip",
+        "move": "static"
+      },
+      "lines": [
+        {
+          "speaker": "pip",
+          "text": "तुम्हारा दिन अच्छा था। बस तुमने देखा नहीं।",
+          "emotion": "happy",
+          "pause": 0.3
+        }
+      ]
+    },
+    {
+      "id": "s07",
+      "camera": {
+        "type": "close",
+        "focus": "mira",
+        "move": "push-in"
+      },
+      "lines": [
+        {
+          "speaker": "mira",
+          "text": "...सच में? कौन सा पल?",
+          "emotion": "confused",
+          "pause": 0.3
+        }
+      ]
+    },
+    {
+      "id": "s08",
+      "camera": {
+        "type": "medium",
+        "focus": "pip",
+        "move": "static"
+      },
+      "lines": [
+        {
+          "speaker": "pip",
+          "text": "तुम रुकीं। तुमने माफ़ी माँगी। वही काफ़ी है।",
+          "emotion": "happy",
+          "action": "nod",
+          "pause": 0.3
+        }
+      ]
+    },
+    {
+      "id": "s09",
+      "camera": {
+        "type": "close",
+        "focus": "mira",
+        "move": "rise"
+      },
+      "lines": [
+        {
+          "speaker": "mira",
+          "text": "शुक्रिया।",
+          "emotion": "happy",
+          "pause": 0.3
+        }
+      ]
+    },
+    {
+      "id": "s10",
+      "camera": {
+        "type": "two-shot",
+        "move": "pull-out"
+      },
+      "reactions": {
+        "mira": "happy"
+      },
+      "hold": 0.9,
+      "lines": [
+        {
+          "speaker": "pip",
+          "text": "हमेशा। अब आराम करो।",
+          "emotion": "happy",
+          "pause": 0.3
+        }
+      ]
+    }
+  ]
+}

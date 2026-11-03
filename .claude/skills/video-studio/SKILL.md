@@ -40,6 +40,7 @@ Then ask the final question ([brainstorm.md §4](references/brainstorm.md)): gen
 1. Repo root = the folder that contains `.claude/` and `studio/`. Create `studio/projects/<slug>/story.json` (slug from the title: lowercase, dashes; add `-2`, `-3` if the folder exists). Follow [formats/story.md](formats/story.md) exactly. Start from `studio/projects/example-small-change/story.json` for the shape.
 2. If `studio/node_modules` exists, run `npm run validate -- <slug>` in `studio/` yourself and fix every problem. If it does not exist yet, skip this; the agent installs and validates.
 3. Set `resolution` to `1080p` only if the user asked for it. Leave `music` out unless the user supplied a file.
+4. **Voices.** Read `studio/voice/.status.json` if it exists. If `chatterbox` or `kokoro` shows `"ready": true`, give every character `voice.engine: "auto"`; otherwise leave the engine at its default (`edge`). Set `voice.delivery` to `calm` for heartfelt, apology, comfort or bedtime stories, `warm` for gentle but lively ones, and leave it `natural` for fast comedy. Give each character a different voice (for Hindi use `hi-IN-` Edge voices and the matching `language`). If the user wants better voices and nothing local is ready, tell them `npm run voices:setup` in `studio/` installs the free local engines (about 7 GB), then carry on with `edge` meanwhile.
 
 ## 6. Build
 

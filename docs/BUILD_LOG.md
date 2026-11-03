@@ -384,3 +384,78 @@ npm run preview -- my-story --shots s01,s03
 2. Build **sound effects** (notification pings, keyboard clicks, door knocks) so insert shots are not silent.
 3. Add **a "series bible"** so recurring characters keep the same look and voice across episodes.
 4. Try a 60-second 1080p story and a landscape one to find the next set of limits.
+
+
+---
+
+## 11. Addendum: better voices (README rewrite, voice research, voice upgrade)
+
+Written after the stages above. Everything here happened after section 10.
+
+### What you asked
+
+1. "Please update the README properly now as per good and proper flow."
+2. "How can we make a voice better, calm and with emotional attachment? Please think and provide a better free solution."
+3. "Please add this ability and download that voice and add that as demo, and before developing you can ask also these things which need to be chosen, and make sure it should always work properly."
+
+### What was done, step by step
+
+| Step | What happened |
+|---|---|
+| README | Rewritten in a proper reading order (what it is, quick start, how it works, writing a story, reference, extend, troubleshoot). The snippet, links, npm scripts and example projects in it were checked mechanically |
+| Research | Searched the current free text-to-speech options and read the primary sources for the top three (Chatterbox, Kokoro, Orpheus: licences, sizes, controls). **Measured what the existing Edge service can do:** it accepts speed and pitch, but rejects pauses, emphasis and emotion styles. Built 8 A/B listening samples of the same lines |
+| Questions | Before building I checked your machine (RTX 4060 8 GB, plenty of disk, Python 3.11 already installed) and the real download sizes, then asked 4 multiple-choice questions. **Your answers:** all three engines (Kokoro + Chatterbox + calm Edge), a new calm emotional demo story voiced each way, English + Hindi, no voice cloning |
+| Install | Two separate Python 3.11 environments (their numpy requirements conflict): Kokoro (ONNX, no PyTorch) and Chatterbox (PyTorch 2.6 with CUDA 12.4). Models into git-ignored folders |
+| Voice system | One interface for four engines (Edge, Windows voice, Kokoro, Chatterbox), a fallback chain per character, delivery presets (`natural`, `warm`, `calm`), a quality gate, a cache, a health check, a repeatable setup script |
+| Demo | `A Quiet Apology` (a person and a blob, 10 gentle lines) in English and Hindi, built four ways each: Edge natural, Edge calm, Kokoro calm, Chatterbox calm |
+| Verification | Whisper transcription of every demo video, pitch measurement per character, fault injection, regression of the existing stories, a repeat run of the setup |
+
+Your downloads this stage: Kokoro 0.35 GB, PyTorch with CUDA about 2.5 GB, Chatterbox model about 3 GB (stored 3.0 GB), plus a 1 GB Whisper model that I added for the self-check (so about 7 GB in total, not the 6 GB I quoted when asking).
+
+### Problems found by testing, and fixed
+
+| # | Problem | How it was found | Fix |
+|---|---|---|---|
+| 1 | "Calm" Kokoro was no slower than normal speech (3.0 words/s) | Measured words per second per variant | Recalibrated the presets to a measured target (calm about 2.4 to 2.8, warm about 2.9) |
+| 2 | Calm chopped short sentences into fragments, so a 7-word line took 5.7 s and sounded stilted | Per-line duration comparison | Pauses only go between substantial sentences; short ones stay together |
+| 3 | **A stale voice cache** reused old audio after the sentence plan changed | A "fix" that changed nothing | The cache key now includes everything that affects the sound |
+| 4 | An invalid Kokoro voice id was silently replaced | Fault injection | It now warns |
+| 5 | **Chatterbox Hindi sometimes garbled a line, skipped a one-word line, or invented words** | Whisper transcription of the whole video (similarity 0.862) | Chatterbox now checks its own work: transcribe, compare, retry up to 3 takes, else fall back. Similarity rose to 0.939 and every line passed |
+| 6 | My length check counted only letters, so valid Hindi looked "too long" | The health check flagged a good clip | Combining marks now count |
+| 7 | **One failed health check made an engine permanently unavailable** (the next check repeated the old verdict) | Reading the check output carefully | The health check always re-tests; builds trust the last recorded result |
+| 8 | Hot output could be stored clipped | A 0.0 dB peak on a Chatterbox clip | Peak limiting in the worker and clipping detection in the gate |
+
+### Verification results
+
+| Check | Result |
+|---|---|
+| Whole-video transcription vs the script (1.0 = identical) | English: Edge 1.0, Kokoro 0.99, Chatterbox 0.98. Hindi: Edge 0.96, Kokoro 0.95, Chatterbox 0.94 |
+| Characters sound different (median pitch) | Mira 176 to 262 Hz vs Pip 110 to 139 Hz on every engine and language |
+| Existing story, default settings | Still 803 frames, 26.8 s |
+| Engines switched off / crashing / failed status | Each falls back, the reason is recorded, a video is still produced |
+| Fully cached run | Starts no engine |
+| Setup run twice | Second run is a quiet no-op ending in a passing health check |
+| All 8 demo videos | Each used the engine it was meant to, no fallbacks |
+
+**What this does not prove:** that the voices sound pleasant. I cannot listen. The transcriptions show the speech is intelligible and on script; the demo exists so that you can judge the feeling.
+
+### Agents and tools in this stage
+
+No subagents. Tools: Bash (about 120 calls in total in the session), Write, Read, PowerShell (long installs in the background), WebSearch and WebFetch (research), one `AskUserQuestion` call with 4 questions, ToolSearch.
+
+### Token usage for this addendum's work
+
+Measured from the session transcript as the difference since section 2's table (it includes the README rewrite, the research and the voice upgrade):
+
+| | Tokens |
+|---|---:|
+| API calls | 99 |
+| New input + cache write | about 277,000 |
+| Output | about 214,000 |
+| Cache reads (re-reading context, cheap) | about 56.8 million |
+
+Session totals now: 191 API calls, about 663,000 cache-write tokens, about 466,000 output tokens, 229 tool calls (Bash 119, Write 53, Read 23, PowerShell 12, Edit 4, Agent 3, ToolSearch 3, WebSearch 3). The long background installs and renders cost wall-clock time, not tokens.
+
+### Files added or changed
+
+`studio/scripts/lib/voices/` (presets, engines, audio, bank), `studio/scripts/voices-setup.ts`, `voices-check.ts`, `demo.ts`, `lib/build.ts`, `studio/voice/` (Kokoro and Chatterbox workers, the optional Whisper checker), two demo stories, the schema and CLI flags, the timeline builder, and the README, skill, format, engine and question-bank documents.

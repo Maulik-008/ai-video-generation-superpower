@@ -96,7 +96,21 @@ A complete working example lives in `studio/projects/example-small-change/story.
 
 `id` (lowercase, dashes), `name`, `kind`, `pose` (`stand` or `sit`, humans only), `scale`, `look`, `voice`, `captionColor`.
 
-Voice: `edge` is a Microsoft Edge neural voice name (all free, verified list below), `gender` picks the offline fallback voice, `rate` like `+10%` / `-8%`, `pitch` like `+20Hz` / `-15Hz`. **Make every character sound different**: change the voice, then push rate and pitch apart (a nervous character `+10%` and `+10Hz`, a deadpan robot `-6%` and `-8Hz`, a kid with a child-like voice such as `en-US-AnaNeural`).
+**Voice** (all optional; a story that sets none of them sounds exactly as before):
+
+| Field | Default | Meaning |
+|---|---|---|
+| `engine` | `edge` | `auto` = the best engine installed (chatterbox, then kokoro, then edge, then offline), or force `edge`, `kokoro`, `chatterbox`, `sapi`. Every choice falls back automatically if it is missing or fails |
+| `delivery` | `natural` | `natural` = as before. **`warm`** and **`calm`** = slower, real pauses between longer sentences, the `emotion` of each line shapes the delivery, and a warm mastering pass. Use `calm` for heartfelt, apology, comfort and bedtime stories |
+| `edge` | `en-US-GuyNeural` | A Microsoft Edge neural voice name (list below). It also sets the language |
+| `kokoro` | chosen from language + gender | A Kokoro voice id such as `af_heart` (US female), `am_michael` (US male), `bf_emma`, `bm_george`, `hf_alpha` / `hm_omega` (Hindi). Two characters of the same gender automatically get different ids |
+| `language` | read from the Edge voice | `en`, `hi`, `es`, `fr`, `it`, `pt`, `ja`, `zh` … |
+| `expressiveness` | 0.5 | Chatterbox only: 0 flat … 1 very expressive |
+| `gender`, `rate`, `pitch` | male, `+0%`, `+0Hz` | `gender` picks the offline fallback voice; `rate` like `+10%` / `-8%` and `pitch` like `+20Hz` / `-15Hz` shift the Edge voice |
+
+**Choosing an engine.** For emotional or calm stories, set `engine: auto` and `delivery: calm` (or `warm`) on every character when `studio/voice/.status.json` shows `chatterbox` or `kokoro` as ready; otherwise keep `engine: edge` with `delivery: calm`, which already sounds noticeably calmer than `natural`. Chatterbox follows the emotion of each line and gives each character a distinct voice; Kokoro is steadier and works without a GPU. Gujarati exists only in the Edge voices, so Gujarati characters stay on `edge`. Chatterbox listens to its own output and retries; one- and two-word lines ("Thanks.", "Always.") are its weak spot, so give them a little more ("Thank you, truly.") when a character uses it.
+
+**Make every character sound different**: pick different voices, then (for Edge) push `rate` and `pitch` apart (a nervous character `+10%` and `+10Hz`, a deadpan robot `-6%` and `-8Hz`, a kid with a child-like voice such as `en-US-AnaNeural`).
 
 | Language | Voices (`<locale>-<Name>`) |
 |---|---|

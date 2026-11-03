@@ -41,8 +41,9 @@ Add these only when they apply:
 | Language | the user wrote in Hindi, Gujarati or another non-English language, or asked for one | The language they used · English · Other. Check the voice table in [formats/story.md](../formats/story.md) |
 | Audience | the purpose is unclear and it changes the writing | Social media viewers · Colleagues / internal · Kids · Customers |
 | Moral | the story should teach or sell something | Let Claude choose · I will tell you (Other) |
+| Voice feel | the tone is heartwarming, calm, emotional or bedtime, or the user mentions how it should sound | **Calm and warm (Recommended)** · Natural conversation · Let Claude decide. Maps to `delivery: calm` / `natural` (and `engine: auto` when a local voice engine is ready) |
 
-Do not ask about voices, camera, resolution, music, captions or colours. Choose sensible values yourself and say what you chose in the treatment. The user can change them afterwards.
+Do not ask about camera, resolution, music, captions, colours, or which voice engine to use (use `engine: auto` when `studio/voice/.status.json` shows a local engine ready, otherwise `edge`). The only voice question is the optional *Voice feel* above. Choose sensible values yourself and say what you chose in the treatment. The user can change them afterwards.
 
 ## 3. Brainstorm: three genuinely different concepts
 

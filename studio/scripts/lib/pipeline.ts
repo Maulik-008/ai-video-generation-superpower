@@ -1,10 +1,11 @@
 import fs from 'node:fs';
+import path from 'node:path';
 import type { Timeline } from '../../src/types.ts';
 import type { Cli } from './args.ts';
 import type { Project } from './paths.ts';
 import { validateStory } from './story.ts';
 import { buildTimeline } from './timeline.ts';
-import { createSynth } from './tts.ts';
+import { prepareVoices } from './voices/bank.ts';
 
 export const log = (m: string) => console.log(m);
 
@@ -21,10 +22,10 @@ export function validateOrExit(project: Project) {
 /** validate -> voices -> timeline.json */
 export async function makeTimeline(project: Project, cli: Cli): Promise<Timeline> {
   const story = validateOrExit(project);
-  log(`Voices for "${story.title}" (provider: ${cli.provider})`);
-  const synth = await createSynth(cli.provider, story.characters[0].voice, log);
-  log(`using ${synth.provider} voices`);
-  const timeline = await buildTimeline(story, project.dir, synth, cli.res ?? story.resolution, log);
+  log(`Voices for "${story.title}" (engine: ${cli.provider === 'auto' ? 'as set in the story' : cli.provider}${cli.delivery ? `, delivery: ${cli.delivery}` : ''})`);
+  const bank = await prepareVoices(story, { provider: cli.provider, delivery: cli.delivery }, log);
+  const timeline = await buildTimeline(story, project.dir, bank, cli.res ?? story.resolution, log);
+  fs.writeFileSync(path.join(project.dir, 'voices-report.json'), JSON.stringify({ voices: timeline.voices, warnings: bank.warnings }, null, 2));
   fs.mkdirSync(project.outDir, { recursive: true });
   fs.writeFileSync(project.timelinePath, JSON.stringify(timeline));
   log(`timeline: ${timeline.width}x${timeline.height}, ${timeline.frames} frames, ${(timeline.frames / timeline.fps).toFixed(1)}s`);

@@ -4,3 +4,7 @@ studio/projects/*/out/
 studio/projects/*/timeline.json
 studio/.cache/
 *.log
+studio/.venv-*/
+studio/.models/
+studio/voice/.status.json
+studio/projects/*/voices-report.json

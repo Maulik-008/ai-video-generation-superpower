@@ -1,0 +1,15 @@
+{
+  "voices": {
+    "dev": {
+      "engine": "edge",
+      "delivery": "natural",
+      "requested": "edge"
+    },
+    "bolt": {
+      "engine": "edge",
+      "delivery": "natural",
+      "requested": "edge"
+    }
+  },
+  "warnings": []
+}

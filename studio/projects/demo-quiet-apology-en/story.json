@@ -1,0 +1,225 @@
+{
+  "title": "A Quiet Apology",
+  "slug": "demo-quiet-apology-en",
+  "aspect": "vertical",
+  "resolution": "720p",
+  "look": {
+    "captions": {
+      "position": "top",
+      "size": 0.034
+    }
+  },
+  "characters": [
+    {
+      "id": "mira",
+      "name": "Mira",
+      "kind": "human",
+      "pose": "sit",
+      "look": {
+        "hairStyle": "bob",
+        "hair": "#4a3326",
+        "skin": "#e0b08c",
+        "outfit": "#6b8fb5"
+      },
+      "voice": {
+        "engine": "auto",
+        "delivery": "calm",
+        "edge": "en-US-AvaMultilingualNeural",
+        "gender": "female",
+        "kokoro": "af_heart",
+        "language": "en"
+      },
+      "captionColor": "#ffffff"
+    },
+    {
+      "id": "pip",
+      "name": "Pip",
+      "kind": "blob",
+      "look": {
+        "body": "#e8b04a",
+        "accent": "#f6dcae"
+      },
+      "voice": {
+        "engine": "auto",
+        "delivery": "calm",
+        "edge": "en-US-AndrewMultilingualNeural",
+        "gender": "male",
+        "kokoro": "am_michael",
+        "language": "en"
+      },
+      "captionColor": "#ffd9a0"
+    }
+  ],
+  "shots": [
+    {
+      "id": "s01",
+      "set": "cozy-room",
+      "camera": {
+        "type": "two-shot",
+        "move": "push-in"
+      },
+      "reactions": {
+        "mira": "sad",
+        "pip": "neutral"
+      },
+      "lead": 0.5,
+      "lines": [
+        {
+          "speaker": "mira",
+          "text": "I'm sorry I snapped at you today.",
+          "emotion": "sad",
+          "pause": 0.3
+        }
+      ]
+    },
+    {
+      "id": "s02",
+      "camera": {
+        "type": "close",
+        "focus": "pip",
+        "move": "push-in"
+      },
+      "lines": [
+        {
+          "speaker": "pip",
+          "text": "I know. You were carrying too much.",
+          "emotion": "neutral",
+          "pause": 0.3
+        }
+      ]
+    },
+    {
+      "id": "s03",
+      "camera": {
+        "type": "close",
+        "focus": "mira",
+        "move": "static"
+      },
+      "lines": [
+        {
+          "speaker": "mira",
+          "text": "That's not an excuse.",
+          "emotion": "sad",
+          "pause": 0.3
+        }
+      ]
+    },
+    {
+      "id": "s04",
+      "camera": {
+        "type": "medium",
+        "focus": "pip",
+        "move": "drift-right"
+      },
+      "lines": [
+        {
+          "speaker": "pip",
+          "text": "No. But it is a reason.",
+          "emotion": "happy",
+          "pause": 0.3
+        }
+      ]
+    },
+    {
+      "id": "s05",
+      "camera": {
+        "type": "close",
+        "focus": "mira",
+        "move": "push-in"
+      },
+      "lines": [
+        {
+          "speaker": "mira",
+          "text": "I just wanted one good day.",
+          "emotion": "tired",
+          "action": "slump",
+          "pause": 0.3
+        }
+      ]
+    },
+    {
+      "id": "s06",
+      "camera": {
+        "type": "close",
+        "focus": "pip",
+        "move": "static"
+      },
+      "lines": [
+        {
+          "speaker": "pip",
+          "text": "You had one. You just didn't see it.",
+          "emotion": "happy",
+          "pause": 0.3
+        }
+      ]
+    },
+    {
+      "id": "s07",
+      "camera": {
+        "type": "close",
+        "focus": "mira",
+        "move": "push-in"
+      },
+      "lines": [
+        {
+          "speaker": "mira",
+          "text": "...What was it?",
+          "emotion": "confused",
+          "pause": 0.3
+        }
+      ]
+    },
+    {
+      "id": "s08",
+      "camera": {
+        "type": "medium",
+        "focus": "pip",
+        "move": "static"
+      },
+      "lines": [
+        {
+          "speaker": "pip",
+          "text": "You stayed. You said sorry. That counts.",
+          "emotion": "happy",
+          "action": "nod",
+          "pause": 0.3
+        }
+      ]
+    },
+    {
+      "id": "s09",
+      "camera": {
+        "type": "close",
+        "focus": "mira",
+        "move": "rise"
+      },
+      "lines": [
+        {
+          "speaker": "mira",
+          "text": "Thank you.",
+          "emotion": "happy",
+          "pause": 0.3
+        }
+      ]
+    },
+    {
+      "id": "s10",
+      "camera": {
+        "type": "two-shot",
+        "move": "pull-out"
+      },
+      "reactions": {
+        "mira": "happy"
+      },
+      "hold": 0.9,
+      "lines": [
+        {
+          "speaker": "pip",
+          "text": "Always. Now, rest.",
+          "emotion": "happy",
+          "pause": 0.3
+        }
+      ]
+    }
+  ]
+}

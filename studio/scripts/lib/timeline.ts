@@ -3,7 +3,7 @@ import path from 'node:path';
 import type { HairStyle, ResolvedCharacter, SetName, Story, TLChunk, TLLine, TLShot, Timeline } from '../../src/types.ts';
 import type { Pcm } from './wav.ts';
 import { encodeWav, mouthEnvelope } from './wav.ts';
-import type { Synth } from './tts.ts';
+import type { VoiceBank } from './voices/bank.ts';
 
 const SKIN = ['#f2c3a5', '#e0a982', '#c98d65', '#9a6a48', '#f7d6bd'];
 const HAIR = ['#2b1d17', '#3a2a22', '#14100e', '#6b4a2f', '#b0723a'];
@@ -77,10 +77,9 @@ export function dimensions(story: Story, res: '720p' | '1080p'): { width: number
   return { width: short, height: long };
 }
 
-export async function buildTimeline(story: Story, projectDir: string, synth: Synth, res: '720p' | '1080p', log: (m: string) => void): Promise<Timeline> {
+export async function buildTimeline(story: Story, projectDir: string, bank: VoiceBank, res: '720p' | '1080p', log: (m: string) => void): Promise<Timeline> {
   const fps = story.fps;
   const characters = resolveCharacters(story);
-  const byId = new Map(story.characters.map((c) => [c.id, c]));
   const audioDir = path.join(projectDir, 'audio');
   fs.rmSync(audioDir, { recursive: true, force: true });
   fs.mkdirSync(audioDir, { recursive: true });
@@ -89,7 +88,7 @@ export async function buildTimeline(story: Story, projectDir: string, synth: Syn
   let cursor = 0;
   let prevSet: SetName = 'studio';
   let lineCount = 0;
-  for (const shot of story.shots) {
+  for (const [si, shot] of story.shots.entries()) {
     const set: SetName = shot.set ?? prevSet;
     prevSet = set;
     const start = cursor;
@@ -98,8 +97,7 @@ export async function buildTimeline(story: Story, projectDir: string, synth: Syn
     for (let i = 0; i < shot.lines.length; i++) {
       const line = shot.lines[i];
       if (i > 0) cursor += Math.round(line.pause * fps);
-      const voice = byId.get(line.speaker)!.voice;
-      const pcm: Pcm = await synth.line(line.text, voice);
+      const pcm: Pcm = bank.get(si, i);
       const frames = Math.max(1, Math.ceil((pcm.samples.length / pcm.sampleRate) * fps));
       const rel = `audio/${shot.id}-${i + 1}.wav`;
       fs.writeFileSync(path.join(projectDir, rel), encodeWav(pcm));
@@ -159,5 +157,6 @@ export async function buildTimeline(story: Story, projectDir: string, synth: Syn
     characters,
     shots,
     music,
+    voices: bank.voices,
   };
 }

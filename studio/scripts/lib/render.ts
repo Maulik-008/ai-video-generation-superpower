@@ -8,7 +8,7 @@ import { probeMedia, runFfmpeg } from './ffmpeg.ts';
 import type { Project } from './paths.ts';
 import { buildPlayer, grabFrame, openPlayer } from './player.ts';
 
-type Opts = { workers?: number; keepFrames?: boolean; log: (m: string) => void };
+type Opts = { workers?: number; keepFrames?: boolean; outName?: string; log: (m: string) => void };
 
 /** One browser process per worker: Chrome only produces frames for a tab it considers visible. */
 async function startPages(count: number, tl: Timeline, log: (m: string) => void) {
@@ -92,7 +92,7 @@ export async function renderVideo(project: Project, tl: Timeline, opts: Opts): P
     await close();
   }
 
-  const outFile = path.join(project.outDir, `${project.slug}.mp4`);
+  const outFile = path.join(project.outDir, `${opts.outName ?? project.slug}.mp4`);
   await mux(project, tl, framesDir, outFile, log);
   if (!opts.keepFrames) fs.rmSync(framesDir, { recursive: true, force: true });
   const info = await probeMedia(outFile);

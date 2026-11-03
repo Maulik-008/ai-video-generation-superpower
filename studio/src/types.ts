@@ -8,6 +8,8 @@ export const SETS = ['skyline-night', 'space-stage', 'cozy-room', 'office-day', 
 export const KINDS = ['human', 'cube', 'blob'] as const;
 export const HAIR_STYLES = ['spiky', 'messy', 'bob', 'bald', 'cap'] as const;
 export const SHOT_TYPES = ['wide', 'two-shot', 'medium', 'close', 'over-shoulder', 'low-angle', 'high-angle', 'insert'] as const;
+export const ENGINES = ['auto', 'edge', 'kokoro', 'chatterbox', 'sapi'] as const;
+export const DELIVERIES = ['natural', 'warm', 'calm'] as const;
 export const MOVES = ['static', 'push-in', 'pull-out', 'drift-left', 'drift-right', 'orbit', 'rise'] as const;
 
 export type Emotion = (typeof EMOTIONS)[number];
@@ -17,12 +19,19 @@ export type Kind = (typeof KINDS)[number];
 export type HairStyle = (typeof HAIR_STYLES)[number];
 export type ShotType = (typeof SHOT_TYPES)[number];
 export type Move = (typeof MOVES)[number];
+export type Engine = (typeof ENGINES)[number];
+export type Delivery = (typeof DELIVERIES)[number];
 
 const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'use a #rrggbb colour');
 const id = z.string().regex(/^[a-z0-9][a-z0-9-]*$/, 'use lowercase letters, digits and dashes');
 
 export const VoiceSchema = z.object({
-  edge: z.string().default('en-US-GuyNeural'), // any Microsoft Edge neural voice ShortName
+  engine: z.enum(ENGINES).default('edge'), // which voice engine; `auto` = best one installed, always with automatic fallback
+  delivery: z.enum(DELIVERIES).default('natural'), // natural = as before; warm / calm = slower, real pauses, emotion-aware, warm mastering
+  edge: z.string().default('en-US-GuyNeural'), // any Microsoft Edge neural voice ShortName (also gives the language)
+  kokoro: z.string().optional(), // Kokoro voice id (af_heart, am_michael, hf_alpha, ...); chosen from language + gender when omitted
+  language: z.string().min(2).max(8).optional(), // 'en', 'hi', ...; read from the Edge voice name when omitted
+  expressiveness: z.number().min(0).max(1).optional(), // Chatterbox only: 0 flat .. 1 very expressive (default 0.5)
   gender: z.enum(['male', 'female']).default('male'), // used only by the offline Windows fallback
   rate: z.string().regex(/^[+-]\d{1,3}%$/, 'like +10% or -5%').default('+0%'),
   pitch: z.string().regex(/^[+-]\d{1,3}Hz$/, 'like +20Hz or -15Hz').default('+0Hz'),
@@ -156,4 +165,5 @@ export type Timeline = {
   characters: ResolvedCharacter[];
   shots: TLShot[];
   music?: { src: string; volume: number };
+  voices?: Record<string, { engine: string; delivery: string; requested: string; note?: string }>;
 };

@@ -10,7 +10,10 @@
     "preview": "tsx scripts/preview.ts",
     "render": "tsx scripts/render.ts",
     "build": "tsx scripts/build.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "voices:setup": "tsx scripts/voices-setup.ts",
+    "voices:check": "tsx scripts/voices-check.ts",
+    "demo": "tsx scripts/demo.ts"
   },
   "dependencies": {
     "esbuild": "0.28.2",
