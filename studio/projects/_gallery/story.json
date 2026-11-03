@@ -1,0 +1,129 @@
+{
+  "title": "Gallery",
+  "slug": "gallery",
+  "characters": [
+    {
+      "id": "ava",
+      "name": "Ava",
+      "kind": "human",
+      "pose": "stand",
+      "look": {
+        "hairStyle": "bob",
+        "hair": "#b0723a",
+        "skin": "#c98d65",
+        "outfit": "#2f7d6d"
+      },
+      "voice": {
+        "edge": "en-US-JennyNeural",
+        "gender": "female"
+      }
+    },
+    {
+      "id": "pip",
+      "name": "Pip",
+      "kind": "blob",
+      "look": {
+        "body": "#4fb3d9",
+        "accent": "#ffd08a"
+      },
+      "voice": {
+        "edge": "en-US-AnaNeural",
+        "gender": "female"
+      }
+    },
+    {
+      "id": "rex",
+      "name": "Rex",
+      "kind": "human",
+      "pose": "stand",
+      "look": {
+        "hairStyle": "cap",
+        "skin": "#f2c3a5",
+        "outfit": "#b0413e",
+        "accent": "#ffd08a"
+      },
+      "voice": {
+        "edge": "en-US-AndrewNeural"
+      }
+    }
+  ],
+  "shots": [
+    {
+      "id": "g1-space-stage",
+      "set": "space-stage",
+      "duration": 2.0,
+      "camera": {
+        "type": "wide",
+        "move": "static"
+      },
+      "reactions": {
+        "ava": "happy",
+        "pip": "surprised",
+        "rex": "worried"
+      }
+    },
+    {
+      "id": "g2-cozy-room",
+      "set": "cozy-room",
+      "duration": 2.0,
+      "camera": {
+        "type": "two-shot",
+        "move": "push-in"
+      },
+      "reactions": {
+        "ava": "sad",
+        "pip": "happy",
+        "rex": "angry"
+      }
+    },
+    {
+      "id": "g3-office-day",
+      "set": "office-day",
+      "duration": 2.0,
+      "camera": {
+        "type": "medium",
+        "focus": "pip",
+        "move": "static"
+      },
+      "reactions": {
+        "ava": "smug",
+        "pip": "tired",
+        "rex": "excited"
+      }
+    },
+    {
+      "id": "g4-sunny-park",
+      "set": "sunny-park",
+      "duration": 2.0,
+      "camera": {
+        "type": "wide",
+        "move": "pull-out"
+      },
+      "reactions": {
+        "ava": "excited",
+        "pip": "happy",
+        "rex": "confused"
+      }
+    },
+    {
+      "id": "g5-studio",
+      "set": "studio",
+      "duration": 2.0,
+      "camera": {
+        "type": "insert",
+        "move": "static"
+      },
+      "reactions": {
+        "ava": "surprised",
+        "pip": "smug",
+        "rex": "happy"
+      },
+      "screen": [
+        "> hello world",
+        "",
+        "! one error found",
+        "> fixing..."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,132 @@
+{
+  "title": "रात के दो बजे",
+  "slug": "hindi-chai",
+  "look": {
+    "captions": {
+      "position": "top",
+      "size": 0.036
+    }
+  },
+  "characters": [
+    {
+      "id": "rohan",
+      "name": "Rohan",
+      "kind": "human",
+      "pose": "sit",
+      "look": {
+        "hairStyle": "messy",
+        "outfit": "#2f7d6d",
+        "skin": "#c98d65"
+      },
+      "voice": {
+        "edge": "hi-IN-MadhurNeural",
+        "gender": "male",
+        "rate": "+0%"
+      },
+      "captionColor": "#ffffff"
+    },
+    {
+      "id": "chai",
+      "name": "Chai",
+      "kind": "blob",
+      "look": {
+        "body": "#d9904a",
+        "accent": "#f6d9a8"
+      },
+      "voice": {
+        "edge": "hi-IN-SwaraNeural",
+        "gender": "female",
+        "pitch": "+8Hz"
+      },
+      "captionColor": "#ffd27a"
+    }
+  ],
+  "shots": [
+    {
+      "id": "s01",
+      "set": "cozy-room",
+      "camera": {
+        "type": "two-shot",
+        "move": "push-in"
+      },
+      "reactions": {
+        "rohan": "tired",
+        "chai": "neutral"
+      },
+      "lines": [
+        {
+          "speaker": "rohan",
+          "text": "आज फिर रात के दो बज गए।",
+          "emotion": "tired",
+          "action": "slump"
+        }
+      ]
+    },
+    {
+      "id": "s02",
+      "camera": {
+        "type": "close",
+        "focus": "chai",
+        "move": "push-in"
+      },
+      "lines": [
+        {
+          "speaker": "chai",
+          "text": "और तुम कहते हो, बस पाँच मिनट का काम है।",
+          "emotion": "smug",
+          "action": "shake"
+        }
+      ]
+    },
+    {
+      "id": "s03",
+      "camera": {
+        "type": "close",
+        "focus": "rohan"
+      },
+      "lines": [
+        {
+          "speaker": "rohan",
+          "text": "तुम्हें कैसे पता?",
+          "emotion": "confused"
+        }
+      ]
+    },
+    {
+      "id": "s04",
+      "camera": {
+        "type": "close",
+        "focus": "chai"
+      },
+      "lines": [
+        {
+          "speaker": "chai",
+          "text": "क्योंकि मैं तीसरी बार ठंडी हो चुकी हूँ।",
+          "emotion": "angry",
+          "action": "point"
+        }
+      ]
+    },
+    {
+      "id": "s05",
+      "camera": {
+        "type": "two-shot",
+        "move": "pull-out"
+      },
+      "lines": [
+        {
+          "speaker": "rohan",
+          "text": "ठीक है, सो जाता हूँ।",
+          "emotion": "worried",
+          "action": "nod"
+        },
+        {
+          "speaker": "chai",
+          "text": "शुभ रात्रि।",
+          "emotion": "happy",
+          "action": "jump"
+        }
+      ]
+    }
+  ]
+}

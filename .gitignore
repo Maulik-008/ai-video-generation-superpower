@@ -1,0 +1,6 @@
+node_modules/
+studio/projects/*/audio/
+studio/projects/*/out/
+studio/projects/*/timeline.json
+studio/.cache/
+*.log

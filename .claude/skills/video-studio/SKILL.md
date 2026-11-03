@@ -1,74 +1,60 @@
 ---
 name: video-studio
-description: Turn a topic or summary into finished AI videos, end to end, through the user's own Chrome. Pick a format (today `talkstuff`: Pixar-style talking-object characters), the skill gets a plan with image prompts and scripts, generates the images in Google Gemini, animates them in Google Flow (Veo) or Grok Imagine, and saves the videos to disk. Use when the user says "/video-studio", "make a video about…", "make a TalkStuff video about…", "turn this topic/summary into videos", or wants the plan → Gemini → Flow/Grok pipeline run for them.
-argument-hint: <topic or summary> [--format talkstuff] [--video flow|grok] [--writer gpt|claude] [--out <folder>] [format options]
+description: Turn any story, topic, article or script into a finished animated video with voices, captions and camera work. The director asks the few questions that matter (as multiple-choice), brainstorms three story angles for the user to pick from, writes the script, then has the video-producer agent render an MP4 with code (low-poly 3D characters, lip-sync, free voices, no accounts or paid APIs). Use when the user says "/video-studio", "make a video about…", "animate this story", "turn this into a short video / reel / cartoon", "make an animated explainer", or describes a story they want as a video. Also runs the older browser pipeline (Gemini + Flow/Grok, TalkStuff talking objects) when the user asks for it.
+argument-hint: <story, topic or script> [--engine studio|browser] [--length 20|35|60] [--res 720p|1080p] [--provider auto|edge|sapi]
 ---
 
-# Video studio
+# Video studio: the director
 
-You orchestrate. The `video-producer` agent does the browser work. Your jobs: settle the inputs, check prerequisites, get one confirmation, launch the agent, unblock it when it gets stuck, and hand over the result.
+You are the **director**. The user gives you a story, a topic or a script. You turn it into a finished video in five moves: **understand → ask → brainstorm → script → build**. You talk to the user. The `video-producer` agent does the rendering. Only you can ask the user questions, so every question happens here, never in the agent.
 
-```
-topic/summary ─► format's planner (GPT or Claude) ─► plan.json (image + video prompts)
-                                                  ─► Gemini: one image per item
-                                                  ─► Flow (Veo) or Grok Imagine: image → video
-                                                  ─► <out>/ videos + images + manifest
-```
-
-A **format** is one file in [formats/](formats/) that defines what kind of video this is: how the plan is written, the shape of `plan.json`, and how video prompts are built. Everything else (browser work, downloads, manifest, blocking rules) is shared. To add a new kind of video, add a new file there. Don't add a new skill or agent.
-
-| Format | File | What it makes |
+| Engine | What it makes | Needs |
 |---|---|---|
-| `talkstuff` (default) | [formats/talkstuff.md](formats/talkstuff.md) | 10-second talking-object character videos |
+| **`studio`** (default) | Animated low-poly 3D story videos: characters that talk with lip-sync, 6 sets, camera cuts, captions, voices, optional music. Fully code-rendered | Node 20+, Chrome/Edge, internet for the free voices. No accounts |
+| `browser` | Photoreal-style clips through the user's own Gemini + Google Flow / Grok accounts (format `talkstuff`: Pixar-style talking objects) | Logged-in sites, generation credits |
 
-## 1. Settle the inputs
+Use `studio` unless the user explicitly asks for Flow, Grok, Gemini, Veo, TalkStuff, "my credits" or photorealistic video. **If the engine is `browser`, stop reading here and follow [engines/browser.md](engines/browser.md)** (it has its own checks and confirmation). The rest of this file is the `studio` flow.
 
-Read them from `$ARGUMENTS`. Use these defaults when an option is missing. Don't ask about it.
+Files you will use: [references/brainstorm.md](references/brainstorm.md) (questions and brainstorm method), [formats/story.md](formats/story.md) (what the engine can draw and how to write `story.json`), [engines/studio.md](engines/studio.md) (commands). Read the first two before your first question.
 
-| Option | Default | Meaning |
-|---|---|---|
-| topic | **required** | A short idea or a pasted summary or article. If it's missing, ask for it. |
-| `--format` | `talkstuff` | Which file in `formats/` to use. If the name doesn't match a file, list the available formats and ask. |
-| `--video` | `flow` | `flow` = flow.google.com (Veo, generates speech audio). `grok` = grok.com/imagine. |
-| `--writer` | per format | Who writes the plan. Each format says which writers it supports and when to switch. |
-| `--out` | `%USERPROFILE%\Videos\VideoStudio\<YYYY-MM-DD>-<format>-<topic-slug>` | Output folder. |
+## 1. Understand
 
-Then read the format file. It adds its own options (for `talkstuff`: `--chars 1\|5`) with their defaults, and tells you which sites its planner needs.
+Read `$ARGUMENTS` and the conversation. Fill the slots in [brainstorm.md §1](references/brainstorm.md) (premise, length, tone, world, characters, language, audience, fixed elements). If the user gave a full script, keep their words verbatim and skip the brainstorm. If they said "surprise me" or "just make it", skip all questions.
 
-## 2. Check prerequisites (fast, no generation)
+## 2. Ask, with options
 
-1. Make sure the Chrome extension is connected: call `tabs_context_mcp` with `createIfEmpty: true`.
-2. Each site has to be **allowed in the Claude in Chrome extension**, and the user has to be **signed in**:
-   - the planner site named in the format file (only when the chosen writer needs one)
-   - `gemini.google.com`
-   - `flow.google.com` (labs.google redirects there) or `grok.com`, whichever `--video` picks
+Use the `AskUserQuestion` tool for every question. Ask **only the slots still unknown**, 1 to 4 questions in one call, at most two calls before the brainstorm. The question bank, option wording and defaults are in [brainstorm.md §2](references/brainstorm.md). Never ask about voices, camera, resolution, music or colours. Choose them yourself and report them in the treatment.
 
-   Open each site once in a new tab and check for a prompt box versus a sign-in page. If a navigation fails with "domain is not allowed", tell the user to allow that site in the extension's site permissions and stop there. When you're done, close the tabs you opened.
-3. Never type passwords and never solve CAPTCHAs. If a site needs either, the user does it.
+## 3. Brainstorm
 
-## 3. One confirmation, then go
+Invent **three genuinely different concepts** for the story (different premise or structure, not three variations of one joke), check each against what the engine can draw, then let the user choose with one `AskUserQuestion` whose options carry the full outline in `preview` (method and checklist: [brainstorm.md §3](references/brainstorm.md)). Mark your strongest "(Recommended)".
 
-Show the plan in a few lines and ask once:
+## 4. Script and one confirmation
 
-> Format: … · Topic: … · Items: N · Writer: … · Video: Flow/Grok · Output: <folder>
-> This sends prompts to the planner, Gemini and Flow/Grok as you. It uses your Flow/Grok generation credits, and it downloads about N images and N videos (a few MB each) to your Downloads folder, then moves them into the output folder. Go?
+Write the full treatment in the chat: title, length, set, characters (voice and look in a few words), and the shot list with every line. Follow the writing rules in [formats/story.md](formats/story.md): a hook in the first two seconds, short lines, a new shot every 2 to 5 seconds, emotions and actions on the lines, a punchline last.
 
-That yes covers this run's prompts, generations and downloads. Ask again before anything outside that scope: buying credits, upgrading a plan, accepting new terms, or sharing or publishing a video.
+Then ask the final question ([brainstorm.md §4](references/brainstorm.md)): generate / change something / generate with offline voices. State that the dialogue text goes to Microsoft's free text-to-speech service. **That one yes covers the whole build.** Do not ask again unless the user wants something outside it (sharing or publishing the video, using paid services).
 
-## 4. Run the agent
+## 5. Write the project
 
-Create the output folder. Then launch the `video-producer` agent with a brief that contains:
-- the topic text, verbatim
-- `format`, the format's own options, `video`, `writer`, the absolute output folder, and the run start time (ISO). The agent uses the start time to recognise its own downloads.
-- `format_ref`: the absolute path of the format file, for example `…\.claude\skills\video-studio\formats\talkstuff.md`
-- if the writer is Claude: the `plan.json` you already wrote into the output folder, following the format file
-- the statement "The user confirmed this run (prompts, generations, downloads into the output folder)."
+1. Repo root = the folder that contains `.claude/` and `studio/`. Create `studio/projects/<slug>/story.json` (slug from the title: lowercase, dashes; add `-2`, `-3` if the folder exists). Follow [formats/story.md](formats/story.md) exactly. Start from `studio/projects/example-small-change/story.json` for the shape.
+2. If `studio/node_modules` exists, run `npm run validate -- <slug>` in `studio/` yourself and fix every problem. If it does not exist yet, skip this; the agent installs and validates.
+3. Set `resolution` to `1080p` only if the user asked for it. Leave `music` out unless the user supplied a file.
 
-The agent writes `<out>/manifest.json` after every step. It returns one of:
-- `STATUS: DONE`: relay the list of video files, which item each is, and anything that degraded (no speech audio, used text-to-video instead of image-to-video, and so on).
-- `STATUS: BLOCKED`: relay the reason and the exact thing the user must do (sign in, solve a CAPTCHA, allow a site, out of credits). When the user says it's done, continue the **same** agent with `SendMessage` ("Unblocked, resume from manifest"). If that agent is gone, launch a fresh one with the same brief plus "resume from <out>/manifest.json".
-- `STATUS: FAILED`: report what failed and at which stage. Suggest the other `--video` tool or a different `--writer` if that would get around it.
+## 6. Build
 
-## 5. Finish
+Launch the `video-producer` agent with a brief containing: `engine: studio`, the project slug, the absolute path of the repo's `studio/` folder, `res` (720p unless asked), `provider` (`auto`, or `sapi` if the user chose offline voices), and the sentence "The user approved this build (voices via Microsoft's free TTS, rendering locally, files written under studio/projects and the user's Videos folder)." It runs the build, looks at preview stills, fixes technical problems, and returns:
 
-Tell the user where the videos are and open the folder (`explorer <out>`). If there's more than one clip and `ffmpeg` is on PATH, offer to stitch them into one `all.mp4`. Don't stitch without asking.
+- `STATUS: DONE`: tell the user the video path, length, which voices were used, and anything imperfect from `notes`. Open the folder with `explorer "<folder of the video>"`.
+- `STATUS: BLOCKED`: relay the reason and the exact action (for example "install Chrome"), and when the user says it is done, continue the **same** agent with `SendMessage`.
+- `STATUS: FAILED`: report the stage and reason in plain words. If it is a story problem (validation), fix `story.json` yourself and relaunch.
+
+## 7. Iterate
+
+A 30-second video builds in under a minute, so make changes cheap. After delivering, offer the most useful tweaks as a short list (change a line, swap a voice, another set, another ending, a title card, longer/shorter, 1080p). For a change: edit `story.json` in the same project, then relaunch the agent with "rebuild project `<slug>`". Unchanged voices are cached, so only edited lines are re-voiced.
+
+## Rules
+
+- Never type passwords, buy anything, or publish or share the video. Delivering a file on the user's disk is the whole job.
+- Keep to what the user's story supports. Do not invent facts about real people or companies, and do not write hateful, harassing or misleading content. Fictional characters are fine.
+- If the user's idea needs something the engine cannot draw (a car chase, a crowd, a realistic animal), say so in one sentence and reshape it with the three character types and six sets, or offer the `browser` engine if that fits better.
