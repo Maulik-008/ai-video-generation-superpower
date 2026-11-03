@@ -104,7 +104,7 @@ export function screenTexture(lines: string[]): THREE.CanvasTexture {
   g.font = '24px Consolas, monospace';
   lines.slice(0, 8).forEach((line, i) => {
     g.fillStyle = line.startsWith('>') ? '#8fe3ff' : line.startsWith('!') ? '#ff9c8a' : '#c9d3ff';
-    g.fillText(line.replace(/^!/, ''), 22, 76 + i * 32, 470);
+    g.fillText(line, 22, 76 + i * 32, 470);
   });
   return tex(c);
 }

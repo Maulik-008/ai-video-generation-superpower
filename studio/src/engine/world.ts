@@ -131,10 +131,9 @@ export class World {
       let lx = n % 2 === 1 ? spacing * 0.55 : 0;
       const type = shot.camera.type;
       const single = type === 'close' || type === 'low-angle' || type === 'high-angle' || (type === 'medium' && (shot.camera.focus || onStage.length < 2));
-      if (single) {
-        const fx = xOf.get(shot.camera.focus ?? shot.lines[0]?.speaker ?? onStage[0]?.id ?? '');
-        if (fx !== undefined) lx = fx - 2.6 * (Math.sign(fx) || 1); // park it beside the focus character, out of frame
-      }
+      const fx = xOf.get(shot.camera.focus ?? shot.lines[0]?.speaker ?? onStage[0]?.id ?? '');
+      if (single && fx !== undefined) lx = fx - 2.6 * (Math.sign(fx) || 1); // park it beside the focus character, out of frame
+      else if (type === 'over-shoulder' && fx !== undefined) lx = fx + 3.6 * (Math.sign(fx) || 1); // far side, away from the shoulder camera
       set.laptop.position.x = lx;
     }
     const lp = set.laptop.position;

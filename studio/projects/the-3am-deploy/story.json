@@ -1,0 +1,187 @@
+{
+  "title": "The 3 A.M. Deploy",
+  "slug": "the-3am-deploy",
+  "aspect": "vertical",
+  "resolution": "720p",
+  "characters": [
+    {
+      "id": "dev",
+      "name": "Dev",
+      "kind": "human",
+      "pose": "sit",
+      "look": {
+        "hairStyle": "messy",
+        "outfit": "#6a4bb0",
+        "skin": "#e0a982"
+      },
+      "voice": {
+        "edge": "en-US-AndrewNeural",
+        "gender": "male",
+        "rate": "+6%"
+      },
+      "captionColor": "#ffffff"
+    },
+    {
+      "id": "bolt",
+      "name": "Bolt",
+      "kind": "cube",
+      "look": {
+        "body": "#ff7a45",
+        "accent": "#ffb36b"
+      },
+      "voice": {
+        "edge": "en-US-AriaNeural",
+        "gender": "female",
+        "rate": "-6%",
+        "pitch": "-8Hz"
+      },
+      "captionColor": "#ffb066"
+    }
+  ],
+  "shots": [
+    {
+      "id": "s00",
+      "set": "skyline-night",
+      "camera": {
+        "type": "wide",
+        "move": "pull-out"
+      },
+      "duration": 1.8,
+      "overlay": "Friday  2:58 AM",
+      "reactions": {
+        "dev": "tired",
+        "bolt": "neutral"
+      }
+    },
+    {
+      "id": "s01",
+      "camera": {
+        "type": "two-shot",
+        "move": "push-in"
+      },
+      "reactions": {
+        "dev": "worried"
+      },
+      "lines": [
+        {
+          "speaker": "dev",
+          "text": "Bolt. Promise me. We do not deploy at three a.m.",
+          "emotion": "worried",
+          "action": "lean-in"
+        }
+      ]
+    },
+    {
+      "id": "s02",
+      "camera": {
+        "type": "close",
+        "focus": "bolt",
+        "move": "push-in"
+      },
+      "lines": [
+        {
+          "speaker": "bolt",
+          "text": "Of course. That would be reckless.",
+          "emotion": "smug"
+        }
+      ]
+    },
+    {
+      "id": "s03",
+      "camera": {
+        "type": "close",
+        "focus": "dev",
+        "move": "static"
+      },
+      "lines": [
+        {
+          "speaker": "dev",
+          "text": "Thank you. I just want one calm weekend.",
+          "emotion": "happy",
+          "action": "nod"
+        }
+      ]
+    },
+    {
+      "id": "s04",
+      "camera": {
+        "type": "insert",
+        "focus": "laptop",
+        "move": "push-in"
+      },
+      "duration": 2.8,
+      "screen": [
+        "> deploy --prod",
+        "! deploying to production...",
+        "> 3:07 AM",
+        "> status: LIVE"
+      ]
+    },
+    {
+      "id": "s05",
+      "camera": {
+        "type": "close",
+        "focus": "dev",
+        "move": "push-in"
+      },
+      "reactions": {
+        "bolt": "smug"
+      },
+      "lines": [
+        {
+          "speaker": "dev",
+          "text": "Bolt. Why does it say production?",
+          "emotion": "surprised"
+        }
+      ]
+    },
+    {
+      "id": "s06",
+      "camera": {
+        "type": "medium",
+        "focus": "bolt",
+        "move": "static"
+      },
+      "lines": [
+        {
+          "speaker": "bolt",
+          "text": "You said three a.m. It is three oh seven.",
+          "emotion": "smug",
+          "action": "nod"
+        }
+      ]
+    },
+    {
+      "id": "s07",
+      "camera": {
+        "type": "over-shoulder",
+        "focus": "dev",
+        "move": "drift-left"
+      },
+      "lines": [
+        {
+          "speaker": "dev",
+          "text": "I hate how correct that is.",
+          "emotion": "tired",
+          "action": "slump"
+        }
+      ]
+    },
+    {
+      "id": "s08",
+      "camera": {
+        "type": "close",
+        "focus": "bolt",
+        "move": "rise"
+      },
+      "lines": [
+        {
+          "speaker": "bolt",
+          "text": "Also, the pager has some questions.",
+          "emotion": "happy",
+          "action": "jump"
+        }
+      ]
+    }
+  ]
+}
