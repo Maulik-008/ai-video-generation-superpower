@@ -12,7 +12,7 @@ import { launch } from './lib/browser.ts';
 import { outputRoot } from './lib/config.ts';
 import { probeMedia, runFfmpeg } from './lib/ffmpeg.ts';
 
-type Item = { id: string; name?: string; label?: string; seconds?: number; motion?: 'push-in' | 'pull-out' | 'pan-left' | 'pan-right' | 'none' };
+type Item = { id: string; name?: string; label?: string; seconds?: number; audio?: string; motion?: 'push-in' | 'pull-out' | 'pan-left' | 'pan-right' | 'none' };
 type Plan = {
   title?: string;
   style?: string;
@@ -108,9 +108,13 @@ async function makeScene(it: Item, overlay: string, i: number): Promise<{ file: 
     await runFfmpeg(['-i', m.file, '-i', overlay, ...audio, '-filter_complex', `[0:v]${cover},fps=${FPS}[b];[b][1:v]overlay=0:0[v]`, '-map', '[v]', '-map', info.hasAudio ? '0:a' : '2:a', '-t', seconds.toFixed(3), ...VOUT, ...AOUT, out]);
     return { file: out, seconds };
   }
-  const seconds = it.seconds ?? 4;
+  // a still may carry its own voice-over (`audio`: a wav/mp3 next to plan.json, for example lines voiced by this repo's own engines)
+  const voice = it.audio ? path.resolve(dir, it.audio) : undefined;
+  if (voice && !fs.existsSync(voice)) throw new Error(`scene "${it.id}": audio file not found: ${voice}`);
+  const seconds = voice ? Math.max(it.seconds ?? 0, (await probeMedia(voice)).seconds + 0.5) : (it.seconds ?? 4);
   const frames = Math.round(seconds * FPS);
-  await runFfmpeg(['-loop', '1', '-framerate', String(FPS), '-t', seconds.toFixed(3), '-i', m.file, '-i', overlay, '-f', 'lavfi', '-t', seconds.toFixed(3), '-i', 'anullsrc=r=48000:cl=stereo', '-filter_complex', `[0:v]${kenBurns(it.motion, frames)}[b];[b][1:v]overlay=0:0[v]`, '-map', '[v]', '-map', '2:a', '-t', seconds.toFixed(3), ...VOUT, ...AOUT, out]);
+  const sound = voice ? ['-i', voice] : ['-f', 'lavfi', '-t', seconds.toFixed(3), '-i', 'anullsrc=r=48000:cl=stereo'];
+  await runFfmpeg(['-loop', '1', '-framerate', String(FPS), '-t', seconds.toFixed(3), '-i', m.file, '-i', overlay, ...sound, '-filter_complex', `[0:v]${kenBurns(it.motion, frames)}[b];[b][1:v]overlay=0:0[v];[2:a]aresample=48000,apad,atrim=0:${seconds.toFixed(3)}[a]`, '-map', '[v]', '-map', '[a]', '-t', seconds.toFixed(3), ...VOUT, ...AOUT, out]);
   return { file: out, seconds };
 }
 
