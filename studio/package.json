@@ -11,6 +11,7 @@
     "render": "tsx scripts/render.ts",
     "build": "tsx scripts/build.ts",
     "qa": "tsx scripts/qa.ts",
+    "stitch": "tsx scripts/stitch.ts",
     "typecheck": "tsc --noEmit",
     "voices:setup": "tsx scripts/voices-setup.ts",
     "voices:check": "tsx scripts/voices-check.ts",

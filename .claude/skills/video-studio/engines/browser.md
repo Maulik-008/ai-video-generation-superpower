@@ -2,7 +2,7 @@
 
 Produces videos by driving the user's own Chrome through the Claude in Chrome extension: a format's planner (for `talkstuff`: the TalkStuff GPT on ChatGPT) writes prompts, Gemini makes one image per item, and Google Flow (Veo) or Grok Imagine animates each image into a clip. It uses the user's own logged-in accounts and generation credits, so it is **not** the default. Use it only when the user asks for it ("use Flow", "use Grok", "use my Gemini/Veo credits", "photoreal", "TalkStuff") or for the `talkstuff` format. For story videos with several characters, voices and camera work, use the `studio` engine instead.
 
-Supported formats: [formats/talkstuff.md](../formats/talkstuff.md).
+Supported formats: [formats/talkstuff.md](../formats/talkstuff.md) (one talking object per clip) and [formats/kahani.md](../formats/kahani.md) (multi-scene Hindi/Urdu/English story reels with recurring characters, Pixar-style or 2D POV, stitched into one reel).
 
 Options of this engine: `--video flow|grok` (default `flow`), `--writer gpt|claude` (per format), `--out <folder>` (default `%USERPROFILE%\Videos\VideoStudio\<YYYY-MM-DD>-<format>-<topic-slug>`).
 
@@ -26,6 +26,8 @@ Show the plan in a few lines and ask once:
 > Format: … · Topic: … · Items: N · Writer: … · Video: Flow/Grok · Output: <folder>
 > This sends prompts to the planner, Gemini and Flow/Grok as you. It uses your Flow/Grok generation credits, and it downloads about N images and N videos (a few MB each) to your Downloads folder, then moves them into the output folder. Go?
 
+For `kahani`, also say the expected cost (about 20 Flow credits per Veo scene, none for `kenburns`), the number of character sheets and scenes, and that the scenes are stitched locally into one reel.
+
 That yes covers this run's prompts, generations and downloads. Ask again before anything outside that scope: buying credits, upgrading a plan, accepting new terms, or sharing or publishing a video.
 
 ### Run the agent
@@ -44,7 +46,9 @@ The agent writes `<out>/manifest.json` after every step. It returns one of:
 
 ### Finish
 
-Tell the user where the videos are and open the folder (`explorer <out>`). If there's more than one clip and `ffmpeg` is on PATH, offer to stitch them into one `all.mp4`. Don't stitch without asking.
+For `kahani`, the stitched reel is the deliverable, and the run's one confirmation covers it: run `npm run stitch -- "<out>"` in `studio/` (add `--music <file>` only if the user supplied one), then look at a contact sheet and at each scene's first frame at 360 px (the checks in the format file). Regenerate a scene only within the confirmed credits. Tell the user the reel's path, its length, the credits used, and anything that drifted.
+
+For other formats, tell the user where the videos are and open the folder (`explorer <out>`). If there's more than one clip, offer to stitch them with `npm run stitch` (it needs a `plan.json` listing the clips in order). Don't stitch without asking.
 
 
 ## Worker runbook (the `video-producer` agent follows this when `engine = browser`)
@@ -85,6 +89,8 @@ Only the first N items are generated, where N comes from the format's option (fo
 
 ### Stage 2: Image per item (Gemini)
 
+**For `kahani`**, first make the character sheets: for each entry in `<out>/characters.json`, generate its `ref_prompt` and save it as `<out>/char-<id>.png`. Do this in the same Gemini chat that you then use for every scene, and start each scene prompt with "Use exactly the same characters as the character sheets above." After each scene image, check that the right characters are there, in the right number, with no text and no extra limbs. Regenerate a wrong one once.
+
 Do this for each item:
 
 1. Navigate to `https://gemini.google.com/app`. For a multi-shot story with recurring characters, use **one chat for all shots** and say "same characters exactly as in the previous image" to keep them consistent. For unrelated items, start a new chat each time.
@@ -100,6 +106,8 @@ Do this for each item:
 6. Update the manifest.
 
 ### Stage 3: Video per item
+
+Skip this stage when `plan.json` has `"motion": "kenburns"`: the stills are animated locally by `npm run stitch`.
 
 Use the item's `video_prompt` from `plan.json`. If the video tool limits prompt or clip length and the item has `video_prompt_short`, use that instead.
 

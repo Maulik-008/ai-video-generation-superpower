@@ -11,7 +11,7 @@ Your brief names the **engine**. Read its runbook first, then follow it end to e
 | `engine` | Runbook | What you do |
 |---|---|---|
 | `studio` | [engines/studio.md](../skills/video-studio/engines/studio.md), section "Worker runbook" | Validate `story.json`, run `npm run build -- <slug> --listen`, read the QA verdict, look at the contact sheet and the preview stills, fix technical problems (camera, cast, timings, laptop) and rebuild at most twice, verify the MP4 |
-| `browser` | [engines/browser.md](../skills/video-studio/engines/browser.md), section "Worker runbook" | Operate Chrome through the `mcp__claude-in-chrome__*` tools: planner → Gemini images → Flow or Grok clips |
+| `browser` | [engines/browser.md](../skills/video-studio/engines/browser.md), section "Worker runbook" | Operate Chrome through the `mcp__claude-in-chrome__*` tools: planner → Gemini images (character sheets first for `kahani`) → Flow or Grok clips; for `kahani`, stitch the scenes with `npm run stitch` |
 
 If a runbook path cannot be opened relative to this file, look for `.claude/skills/video-studio/engines/<engine>.md` under the current working directory.
 

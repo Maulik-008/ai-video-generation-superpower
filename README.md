@@ -200,6 +200,7 @@ Run from `studio/`. `<slug>` is a folder name under `studio/projects/`.
 | `npm run preview -- <slug>` | One still frame per shot in `out/stills/` (`--shots s01,s03`, `--frames 120,400`) |
 | `npm run render -- <slug>` | Renders `out/<slug>.mp4` |
 | `npm run build -- <slug>` | All of the above, then QA, then copies the MP4 to your Videos folder |
+| `npm run stitch -- <folder>` | Joins generated scenes (Veo/Grok clips, or stills with slow camera moves) from a `kahani` plan into one reel: labels, POV title, handle, end card, music ducked under the dialogue, -14 LUFS |
 | `npm run qa -- <slug>` | Checks the finished video (picture, loudness, pacing, captions) and writes a contact sheet; `--listen` also transcribes the final mix and compares it with the script |
 | `node setup.mjs` (repo root) | The first-time setup wizard; also `--status`, `--plan`, `--apply`, `--verify`, `--remove` (see [docs/SETUP.md](docs/SETUP.md)) |
 | `npm run voices:setup` | Installs the Kokoro and Chatterbox voice engines (`-- --only kokoro` for one) |
@@ -254,7 +255,11 @@ docs/BUILD_LOG.md            how all of this was built, stage by stage, with tok
 
 ---
 
-## The browser engine (older route)
+## The browser engine: cinematic AI reels
+
+For the photoreal Pixar-style look of the popular Hindi and Urdu story reels (talking vegetables in a village, organs in a "body factory", fables with a Part 2, 2D POV nostalgia), use `--engine browser --format kahani`. Claude writes a character bible and an 8-second beat sheet with the dialogue; your own Gemini and Google Flow (Veo 3) make the images and voiced clips; `npm run stitch` assembles the reel locally. It costs about 20 Flow credits per scene, or none with `--motion kenburns` (stills with camera moves). How the reference reels were made, and why: [docs/REFERENCE_ANALYSIS.md](docs/REFERENCE_ANALYSIS.md). The format: [formats/kahani.md](.claude/skills/video-studio/formats/kahani.md).
+
+### The older talking-object route
 
 `--engine browser` drives **your own Chrome** through ChatGPT's TalkStuff GPT, Gemini images and Google Flow or Grok Imagine to make short photoreal-style talking-object clips (format `talkstuff`). It uses your logged-in accounts and generation credits, so it is not the default. It needs the Claude in Chrome extension connected, with `chatgpt.com`, `gemini.google.com`, `flow.google.com` / `labs.google` and `grok.com` allowed and signed in. The TalkStuff GPT is retired on 2026-12-11; after that the format switches to `--writer claude`. Details: [engines/browser.md](.claude/skills/video-studio/engines/browser.md).
 
