@@ -1,0 +1,263 @@
+{
+  "title": "POV: power cut at home",
+  "slug": "power-cut-pov",
+  "aspect": "vertical",
+  "resolution": "720p",
+  "fps": 60,
+  "look": {
+    "captions": {
+      "style": "none"
+    },
+    "handheld": true,
+    "sfx": true,
+    "ambience": true,
+    "laptop": false
+  },
+  "characters": [
+    {
+      "id": "mom",
+      "name": "Mummy",
+      "kind": "human",
+      "pose": "stand",
+      "look": {
+        "hairStyle": "bob",
+        "hair": "#1d1412",
+        "skin": "#c98d65",
+        "outfit": "#7a4bb0",
+        "pants": "#7a4bb0"
+      },
+      "voice": {
+        "engine": "edge",
+        "edge": "hi-IN-SwaraNeural",
+        "gender": "female"
+      }
+    },
+    {
+      "id": "meera",
+      "name": "Meera",
+      "kind": "human",
+      "pose": "stand",
+      "scale": 0.82,
+      "look": {
+        "hairStyle": "bob",
+        "hair": "#14100e",
+        "skin": "#c98d65",
+        "outfit": "#e8b923",
+        "pants": "#3a3a6e"
+      },
+      "voice": {
+        "engine": "edge",
+        "edge": "hi-IN-SwaraNeural",
+        "gender": "female"
+      }
+    },
+    {
+      "id": "chintu",
+      "name": "Chintu",
+      "kind": "human",
+      "pose": "stand",
+      "scale": 0.62,
+      "look": {
+        "hairStyle": "messy",
+        "hair": "#14100e",
+        "skin": "#c98d65",
+        "outfit": "#4f9d5a",
+        "pants": "#2f2f55"
+      },
+      "voice": {
+        "engine": "edge",
+        "edge": "hi-IN-MadhurNeural",
+        "gender": "male"
+      }
+    }
+  ],
+  "shots": [
+    {
+      "id": "s01",
+      "set": "cozy-room",
+      "cast": [
+        "meera",
+        "chintu"
+      ],
+      "camera": {
+        "type": "two-shot",
+        "move": "push-in"
+      },
+      "duration": 3.2,
+      "lead": 0.2,
+      "overlay": "POV: power cut at home",
+      "reactions": {
+        "meera": "neutral",
+        "chintu": "tired"
+      }
+    },
+    {
+      "id": "s01b",
+      "cast": [
+        "meera",
+        "chintu"
+      ],
+      "camera": {
+        "type": "medium",
+        "focus": "chintu",
+        "move": "push-in"
+      },
+      "duration": 2.2,
+      "overlay": "7.40 pm",
+      "reactions": {
+        "meera": "neutral",
+        "chintu": "tired"
+      }
+    },
+    {
+      "id": "s02",
+      "set": "studio",
+      "cast": [
+        "chintu"
+      ],
+      "transition": "dip",
+      "sfx": "thud",
+      "camera": {
+        "type": "close",
+        "focus": "chintu",
+        "move": "push-in"
+      },
+      "duration": 3.2,
+      "overlay": "7.41 pm",
+      "reactions": {
+        "chintu": "worried"
+      }
+    },
+    {
+      "id": "s03",
+      "set": "cozy-room",
+      "cast": [
+        "mom",
+        "meera"
+      ],
+      "transition": "fade",
+      "sfx": "sparkle",
+      "camera": {
+        "type": "two-shot",
+        "move": "pull-out"
+      },
+      "duration": 3.2,
+      "overlay": "7.45 pm",
+      "reactions": {
+        "mom": "happy",
+        "meera": "happy"
+      }
+    },
+    {
+      "id": "s03b",
+      "cast": [
+        "meera",
+        "chintu"
+      ],
+      "camera": {
+        "type": "medium",
+        "focus": "chintu",
+        "move": "push-in"
+      },
+      "duration": 2.0,
+      "overlay": "7.45 pm",
+      "reactions": {
+        "meera": "happy",
+        "chintu": "happy"
+      }
+    },
+    {
+      "id": "s04",
+      "cast": [
+        "meera",
+        "chintu"
+      ],
+      "camera": {
+        "type": "two-shot",
+        "move": "drift-right"
+      },
+      "duration": 2.6,
+      "overlay": "8.00 pm",
+      "reactions": {
+        "meera": "excited",
+        "chintu": "excited"
+      }
+    },
+    {
+      "id": "s04b",
+      "cast": [
+        "meera",
+        "chintu"
+      ],
+      "camera": {
+        "type": "close",
+        "focus": "chintu",
+        "move": "push-in"
+      },
+      "duration": 2.2,
+      "overlay": "8.00 pm",
+      "reactions": {
+        "meera": "excited",
+        "chintu": "excited"
+      }
+    },
+    {
+      "id": "s05",
+      "set": "skyline-night",
+      "cast": [
+        "meera",
+        "chintu"
+      ],
+      "transition": "fade",
+      "camera": {
+        "type": "two-shot",
+        "move": "pull-out"
+      },
+      "duration": 4.8,
+      "overlay": "8.30 pm",
+      "reactions": {
+        "meera": "happy",
+        "chintu": "happy"
+      }
+    },
+    {
+      "id": "s06",
+      "set": "cozy-room",
+      "cast": [
+        "meera",
+        "chintu"
+      ],
+      "transition": "whip",
+      "sfx": "ding",
+      "camera": {
+        "type": "two-shot",
+        "move": "punch-in"
+      },
+      "duration": 2.8,
+      "overlay": "9.00 pm",
+      "reactions": {
+        "meera": "surprised",
+        "chintu": "sad"
+      }
+    },
+    {
+      "id": "s06b",
+      "cast": [
+        "mom",
+        "meera"
+      ],
+      "camera": {
+        "type": "medium",
+        "focus": "mom",
+        "move": "push-in"
+      },
+      "duration": 2.8,
+      "hold": 0.4,
+      "overlay": "9.00 pm",
+      "reactions": {
+        "mom": "happy",
+        "meera": "happy"
+      }
+    }
+  ]
+}

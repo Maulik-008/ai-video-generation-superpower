@@ -7,7 +7,7 @@ import { findBrowser, launch } from './browser.ts';
 import { ffmpegPath, probeMedia, runFfmpeg } from './ffmpeg.ts';
 import type { Project } from './paths.ts';
 import { buildPlayer, grabFrame, openPlayer } from './player.ts';
-import { ambienceFile, sfxFile } from './sfx.ts';
+import { ambienceFile, padFile, sfxFile } from './sfx.ts';
 
 /** Empty a folder without removing it: on Windows a folder that is open in Explorer (or a terminal) cannot be deleted. */
 function emptyDir(dir: string) {
@@ -167,8 +167,17 @@ async function mux(project: Project, tl: Timeline, framesDir: string, outFile: s
   let fc = '';
   // 1) speech: every line at its time, then normalised to -14 LUFS, the level social platforms play at (dialogue sets the loudness)
   if (lines.length === 0) {
-    const i = input('-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=mono');
-    fc += `[${i}:a]atrim=0:${D.toFixed(3)}[speech];`;
+    // no speech: a story without music gets a soft synthesized pad, so a silent POV still has something to carry it
+    let bed: string | null = null;
+    if (!tl.music) {
+      try {
+        bed = await padFile(D);
+      } catch (e) {
+        log(`  warning: skipped the music pad (${(e as Error).message.split('\n')[0].slice(0, 120)})`);
+      }
+    }
+    const i = bed ? input('-i', bed) : input('-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=mono');
+    fc += `[${i}:a]aresample=48000,atrim=0:${D.toFixed(3)},afade=t=in:d=1.2[speech];`;
   } else {
     const ids = lines.map((l) => ({ i: input('-i', path.join(project.dir, l.audio)), l }));
     ids.forEach(({ i, l }, k) => (fc += `[${i}:a]adelay=${ms(l.start)}:all=1[a${k}];`));

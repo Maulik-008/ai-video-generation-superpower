@@ -78,6 +78,22 @@ export async function sfxFile(name: Sfx): Promise<string> {
   return file;
 }
 
+/**
+ * A soft synthesized pad for stories with no speech and no music file: a slow, warm chord (A minor 9 feel) whose notes swell
+ * and fade out of step with each other, with a quiet high shimmer. Made from sine waves, so there is nothing to license.
+ * Levelled to about -16 LUFS, which is what carries a silent story to the platform loudness of -14.
+ */
+export async function padFile(seconds: number): Promise<string> {
+  const d = Math.max(10, Math.ceil(seconds / 5) * 5);
+  const file = path.join(SFX_DIR, `${VERSION}-pad-${d}s.wav`);
+  if (!fs.existsSync(file)) {
+    const note = (hz: number, rate: number, ph: number, amp: number) => `${amp}*sin(2*PI*${hz}*t)*(0.55+0.45*sin(2*PI*${rate}*t+${ph}))`;
+    const expr = [note(110, 0.07, 0, 0.5), note(164.81, 0.09, 1.3, 0.38), note(220, 0.06, 2.1, 0.34), note(261.63, 0.08, 0.7, 0.26), note(329.63, 0.05, 3.4, 0.22), note(493.88, 0.11, 4.2, 0.07)].join('+');
+    await generate(file, tone(expr, d + 1), 'lowpass=f=1800,aecho=0.8:0.6:420|760:0.28|0.18', { lufs: -16 });
+  }
+  return file;
+}
+
 /** Path of a room-tone bed for `set`, at least `seconds` long (lengths are rounded up so beds are reused between builds). */
 export async function ambienceFile(set: SetName, seconds: number): Promise<string> {
   const d = Math.max(4, Math.ceil(seconds / 5) * 5);
