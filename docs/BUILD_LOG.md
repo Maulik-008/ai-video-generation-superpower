@@ -541,3 +541,17 @@ The research and per-tool verdicts are in [TOOLING_RESEARCH.md](TOOLING_RESEARCH
 5. The limiter's auto-level pushed the true peak to -0.4 dBTP. Fixed: -1.4.
 6. Windows refused to delete an open `stills/` folder. Output folders are now emptied instead.
 7. The swelling highlighted caption word overlapped the next word. Fixed with margins.
+
+
+---
+
+## 14. Addendum: the soft "clay toy" look and the article's review practices
+
+**Asked:** study the "Opus 5.5 motion design" article and its reel (soft orange cube mascot, bokeh shop background) and make the videos look like that.
+
+**Built:** a new default `look.style: "soft"`: rounded geometry, clearcoat and sheen materials, glossy pill eyes, capsule brows, a studio environment map, PCF soft shadows, depth of field per framing, bloom, and emotive extras driven by the expression springs (sweat drop, tears, blush). On the QA side: phone-size frames, a motion strip, a poster frame, a determinism check and -14 LUFS. The critic now gives six 1-10 scores and the 3 worst defects first; the director loops until every score is 8+, at most 2 rounds. The director also writes `brief.md` and, when given a reference, `style_guide.md`. See TOOLING_RESEARCH.md, round 2.
+
+**Found by testing and fixed:**
+1. The first soft render was washed out and the sunny close-up was blown out: exposure, environment strength, sheen and bloom were retuned per set.
+2. The bob fringe read as a visor: the soft style uses a single hair cap. A first attempt covered the eyes and was reverted.
+3. The determinism check failed on a hash: the GPU flips the odd pixel by one level (PSNR about 105 dB). It now compares with PSNR (≥ 50 dB), which still catches real state bugs.

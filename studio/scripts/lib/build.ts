@@ -27,6 +27,8 @@ export async function runBuild(project: Project, cli: Cli, opts: { videosSubdir?
   fs.mkdirSync(videos, { recursive: true });
   const copy = path.join(videos, `${name}.mp4`);
   fs.copyFileSync(out, copy);
+  const poster = out.replace(/\.mp4$/, '-poster.jpg');
+  if (fs.existsSync(poster)) fs.copyFileSync(poster, path.join(videos, `${name}-poster.jpg`));
   log(`VIDEO: ${copy}`);
   return copy;
 }

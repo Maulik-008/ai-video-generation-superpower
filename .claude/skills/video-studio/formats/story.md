@@ -29,7 +29,7 @@ Everything else in a user's story has to be mapped onto these three: a talking t
 
 Every set has a laptop in front. It slides aside automatically so it does not hide a character standing in the middle. When the story has nothing to do with a computer, hide it with `"look": { "laptop": false }` (insert shots still show it).
 
-**Emotions** (`lines[].emotion`, `shots[].reactions`): `neutral` `happy` `sad` `angry` `surprised` `worried` `smug` `tired` `excited` `confused`. A character keeps their last emotion into later shots until they speak again or a `reactions` entry overrides it before their first line of a shot.
+**Emotions** (`lines[].emotion`, `shots[].reactions`): `neutral` `happy` `sad` `angry` `surprised` `worried` `smug` `tired` `excited` `confused`. A character keeps their last emotion into later shots until they speak again or a `reactions` entry overrides it before their first line of a shot. Emotions also bring their own extras automatically: a sweat drop for `worried` (and a little for `confused`, `surprised`, `tired`), tears for `sad`, pink cheeks for `happy`, `excited` and a hint for `smug`.
 
 **Actions** (`lines[].action`, play for about a second when the line starts): `nod` `shake` `shrug` `point` `lean-in` `jump` `slump` `wave`. Talking gestures, blinking, breathing and lip-sync are automatic.
 
@@ -104,6 +104,8 @@ A complete working example lives in `studio/projects/example-small-change/story.
 | `look.captions.style` | `bold` | `bold`: big heavy captions in short groups, the word being spoken lit in the speaker's colour (timed by Whisper when the Chatterbox environment is installed, otherwise estimated from the audio). `classic`: the older phrase captions. `none`: no captions |
 | `look.captions.position` | `top` | `top` (29% down), `middle`, `bottom`. `size` is a fraction of the frame height (default 0.05 bold, 0.034 classic) |
 | `look.handheld` | `true` | Faint camera drift. Turn off for a very still look |
+| `look.style` | `soft` | `soft`: rounded "clay toy" characters with glossy eyes and satin skin, soft real shadows, studio reflections and a little bloom. `lowpoly`: the older flat-shaded facets (renders slightly faster) |
+| `look.depthOfField` | `true` | Soft style: the background melts into bokeh behind the subject, strongest on close-ups. `false` keeps everything sharp |
 | `look.sfx` | `true` | Automatic sound effects: a whoosh on `whip`/`zoom`, a pop on an `overlay` title, a boing on `jump`, typing on an `insert` with `screen` text. `false` keeps only the ones you set |
 | `look.ambience` | `true` | A very quiet room tone per set (city night, room, office, park wind, space drone), so pauses never fall into dead silence |
 | `look.laptop` | `true` | `false` hides the laptop prop except in insert shots |

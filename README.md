@@ -2,7 +2,7 @@
 
 **Tell Claude a story. Get back an animated video with voices.**
 
-Describe any story, topic or script. Claude asks a few multiple-choice questions, brainstorms three different angles for you to pick from, writes the script, and a worker agent renders the finished MP4: low-poly 3D characters at 60 fps that talk with lip-sync, bold word-by-word captions, camera cuts and transitions, sound effects, and a voice for every character. A critic agent then reviews the video before you get it. It runs on your own machine with free tools. No accounts, no paid APIs.
+Describe any story, topic or script. Claude asks a few multiple-choice questions, brainstorms three different angles for you to pick from, writes the script, and a worker agent renders the finished MP4: soft "clay toy" 3D characters at 60 fps with glossy eyes, soft shadows and depth of field that talk with lip-sync, bold word-by-word captions, camera cuts and transitions, sound effects, and a voice for every character. A critic agent then reviews the video before you get it. It runs on your own machine with free tools. No accounts, no paid APIs.
 
 ```
 You:  /video-studio a developer asks an AI not to deploy at 3 a.m. (it finds a loophole)
@@ -182,7 +182,8 @@ Measured on the demo story: natural Edge speaks at about 3.2 words per second, `
 | **Transitions** | cut, crossfade, dip to black, whip pan with motion blur, zoom blur |
 | **Captions** | bold, word by word, the spoken word lit in the speaker's colour, timed by Whisper; or classic phrases; any script your system fonts have (Hindi tested) |
 | **Sound** | Five voice engines with automatic fallback (above); 300+ Edge voices including Gujarati, 54 Kokoro voices, 23 Chatterbox languages; calm / warm delivery; sound effects and a room tone per set, made by ffmpeg; optional background music from a file you supply, quietened under speech |
-| **Picture** | vertical 9:16 (default), square or landscape; 720p or 1080p; 60 fps (or 30) |
+| **Look** | `soft` (default): rounded, glossy "clay toy" characters, soft shadows, studio reflections, depth of field and bloom; or `lowpoly`, the faceted look. Emotions add sweat drops, tears and blush |
+| **Picture** | vertical 9:16 (default), square or landscape; 720p or 1080p; 60 fps (or 30); a poster frame for the thumbnail |
 
 **Not supported:** crowds, vehicles, realistic animals, composed music. The director reshapes ideas to fit what the engine can draw.
 

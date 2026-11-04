@@ -1,7 +1,13 @@
 import * as THREE from 'three';
-import type { Action, Emotion, SetName, TLChunk, TLLine, TLShot, Timeline, Transition } from '../types';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { BokehPass } from 'three/examples/jsm/postprocessing/BokehPass.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import type { Action, Emotion, SetName, ShotType, TLChunk, TLLine, TLShot, Timeline, Transition } from '../types';
 import { applyMove, frameShot, type CamChar } from './camera';
-import { buildRig, type Rig } from './characters';
+import { buildRig, setCharacterStyle, type Rig } from './characters';
 import { EMOTION_TABLE, type FaceParams } from './emotions';
 import { buildSet, type SetBuild } from './sets';
 import { clamp, hashString, rng, springStep } from './util';
@@ -12,6 +18,9 @@ const FACE_KEYS = Object.keys(EMOTION_TABLE.neutral) as (keyof FaceParams)[];
 const ACTION_SECONDS = 1.1;
 const TRANSITION_SECONDS: Record<Transition, number> = { cut: 0, fade: 0.45, dip: 0.6, whip: 0.3, zoom: 0.36 };
 const MODE: Record<Transition, number> = { cut: 0, fade: 1, dip: 2, whip: 3, zoom: 4 };
+// soft look: how strongly the studio reflections light each set (night sets stay moody), and how shallow the focus is per framing
+const ENV_LIGHT: Record<SetName, number> = { 'skyline-night': 0.2, 'space-stage': 0.2, 'cozy-room': 0.25, 'office-day': 0.3, 'sunny-park': 0.22, studio: 0.25 };
+const APERTURE: Record<ShotType, number> = { close: 0.0048, 'over-shoulder': 0.004, 'low-angle': 0.0036, 'high-angle': 0.0036, medium: 0.0032, 'two-shot': 0.002, insert: 0.005, wide: 0.0007 };
 
 /**
  * Everything that moves a character, precomputed once for every frame of the video. Rendering then only reads
@@ -96,6 +105,7 @@ export class World {
   private texB: THREE.FramebufferTexture;
   private quad: { scene: THREE.Scene; camera: THREE.OrthographicCamera; mat: THREE.ShaderMaterial };
   private capKey = '';
+  private post?: { composer: EffectComposer; bokeh: BokehPass };
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -108,6 +118,8 @@ export class World {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
     this.camera = new THREE.PerspectiveCamera(36, tl.width / tl.height, 0.1, 200);
+    const soft = tl.look.style !== 'lowpoly';
+    setCharacterStyle(tl.look.style);
 
     this.scene.add(this.ambient, this.hemi, this.key, this.rim, this.key.target, this.rim.target);
     this.key.target.position.set(0, 1.5, 0);
@@ -155,7 +167,51 @@ export class World {
     const qs = new THREE.Scene();
     qs.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat));
     this.quad = { scene: qs, camera: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), mat };
+    if (soft) this.setupSoftLook();
     this.applyCaptionLayout();
+  }
+
+  /** Reflections from a neutral studio, soft real shadows, then depth of field, a little bloom and the tone-mapping pass. */
+  private setupSoftLook() {
+    const { tl, renderer, scene } = this;
+    renderer.toneMappingExposure = 0.86; // reflections and soft shadows add light the sets were not tuned for
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    const sh = this.key.shadow;
+    this.key.castShadow = true;
+    sh.mapSize.set(2048, 2048);
+    Object.assign(sh.camera, { left: -8, right: 8, top: 8, bottom: -8, near: 0.5, far: 80 });
+    sh.camera.updateProjectionMatrix();
+    sh.bias = -0.0004;
+    sh.normalBias = 0.025;
+    sh.radius = 5;
+    sh.intensity = 0.6;
+    for (const rig of this.rigs.values()) rig.root.traverse((o) => o instanceof THREE.Mesh && (o.castShadow = true));
+    for (const set of this.sets.values()) set.group.traverse((o) => o instanceof THREE.Mesh && (o.receiveShadow = true));
+    const target = new THREE.WebGLRenderTarget(tl.width, tl.height, { type: THREE.HalfFloatType, samples: 4 });
+    const composer = new EffectComposer(renderer, target);
+    composer.setPixelRatio(1);
+    composer.setSize(tl.width, tl.height);
+    composer.addPass(new RenderPass(scene, this.camera));
+    const bokeh = new BokehPass(scene, this.camera, { focus: 6, aperture: 0.001, maxblur: 0.012 });
+    bokeh.enabled = tl.look.depthOfField !== false;
+    composer.addPass(bokeh);
+    composer.addPass(new UnrealBloomPass(new THREE.Vector2(tl.width, tl.height), 0.2, 0.4, 1.05));
+    composer.addPass(new OutputPass());
+    this.post = { composer, bokeh };
+  }
+
+  /** Draw the current scene to the canvas: straight, or through the soft-look passes focused on `target`. */
+  private present(type: ShotType, set: SetName, focusDistance: number) {
+    if (!this.post) return this.renderer.render(this.scene, this.camera);
+    this.scene.environmentIntensity = ENV_LIGHT[set];
+    const u = this.post.bokeh.uniforms as Record<string, { value: number }>;
+    u.focus.value = focusDistance;
+    u.aperture.value = APERTURE[type];
+    u.maxblur.value = 0.016;
+    this.post.composer.render();
   }
 
   private applyCaptionLayout() {
@@ -374,7 +430,7 @@ export class World {
     this.camera.updateProjectionMatrix();
     this.camera.position.copy(cam.pos);
     this.camera.lookAt(cam.target);
-    this.renderer.render(this.scene, this.camera);
+    this.present(shot.camera.type, shot.set, cam.pos.distanceTo(cam.target));
   }
 
   renderFrame(frame: number) {

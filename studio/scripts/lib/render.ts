@@ -4,7 +4,7 @@ import path from 'node:path';
 import type { Timeline } from '../../src/types.ts';
 import type { Browser, Page } from 'puppeteer-core';
 import { findBrowser, launch } from './browser.ts';
-import { probeMedia, runFfmpeg } from './ffmpeg.ts';
+import { ffmpegPath, probeMedia, runFfmpeg } from './ffmpeg.ts';
 import type { Project } from './paths.ts';
 import { buildPlayer, grabFrame, openPlayer } from './player.ts';
 import { ambienceFile, sfxFile } from './sfx.ts';
@@ -65,6 +65,50 @@ export async function renderStills(project: Project, tl: Timeline, targets: { na
   return out;
 }
 
+/**
+ * Seekability test: a frame must look the same however it is reached. Draws `frame` on two separate pages, and again
+ * on the first page after jumping elsewhere, and compares the pixels (PSNR). A timer, Math.random or state carried
+ * between frames shows up as a visible change (well under 50 dB); the GPU's own rounding in the soft-look passes
+ * flips the odd pixel by one level (about 100 dB), which nobody can see, so that passes.
+ */
+export async function determinismCheck(tl: Timeline, frame: number, log: (m: string) => void): Promise<{ ok: boolean; detail: string }> {
+  const { close, pages } = await startPages(2, tl, () => {});
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'video-studio-det-'));
+  try {
+    const save = async (name: string, page: Page, f: number) => {
+      const file = path.join(dir, `${name}.png`);
+      fs.writeFileSync(file, await grabFrame(page, f, 'png'));
+      return file;
+    };
+    const a = await save('a', pages[0].page, frame);
+    await grabFrame(pages[0].page, Math.max(0, tl.frames - 1 - frame), 'png');
+    const b = await save('b', pages[0].page, frame);
+    const c = await save('c', pages[1].page, frame);
+    const db = [await psnr(a, b), await psnr(a, c)];
+    const ok = db.every((v) => v >= 50);
+    const show = (v: number) => (v === Infinity ? 'identical' : `${v.toFixed(0)} dB`);
+    log(`  determinism: frame ${frame} on revisit ${show(db[0])}, on a second page ${show(db[1])}${ok ? '' : ' (VISIBLY DIFFERENT)'}`);
+    return { ok, detail: `revisit ${show(db[0])}, second page ${show(db[1])}` };
+  } finally {
+    await close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+/** Peak signal-to-noise ratio between two images in dB (Infinity when identical). */
+async function psnr(a: string, b: string): Promise<number> {
+  const { spawn } = await import('node:child_process');
+  const bin = await ffmpegPath();
+  const text = await new Promise<string>((resolve) => {
+    const p = spawn(bin, ['-hide_banner', '-i', a, '-i', b, '-lavfi', '[0]format=rgb24[x];[1]format=rgb24[y];[x][y]psnr', '-f', 'null', '-'], { stdio: ['ignore', 'ignore', 'pipe'] });
+    let err = '';
+    p.stderr.on('data', (d) => (err += d));
+    p.on('close', () => resolve(err));
+  });
+  const m = /average:(inf|[\d.]+)/.exec(text);
+  return !m ? 0 : m[1] === 'inf' ? Infinity : Number(m[1]);
+}
+
 export async function renderVideo(project: Project, tl: Timeline, opts: Opts): Promise<string> {
   const { log } = opts;
   const framesDir = path.join(project.outDir, 'frames');
@@ -99,6 +143,10 @@ export async function renderVideo(project: Project, tl: Timeline, opts: Opts): P
   }
 
   const outFile = path.join(project.outDir, `${opts.outName ?? project.slug}.mp4`);
+  // poster: the punchline frame (middle of the last shot's first line), saved before the frames are deleted
+  const last = tl.shots[tl.shots.length - 1];
+  const pf = Math.min(tl.frames - 1, last.lines[0] ? Math.round((last.lines[0].start + last.lines[0].end) / 2) : Math.round((last.start + last.end) / 2));
+  fs.copyFileSync(path.join(framesDir, `${String(pf).padStart(6, '0')}.jpg`), path.join(project.outDir, `${opts.outName ?? project.slug}-poster.jpg`));
   await mux(project, tl, framesDir, outFile, log);
   if (!opts.keepFrames) fs.rmSync(framesDir, { recursive: true, force: true });
   const info = await probeMedia(outFile);
@@ -117,14 +165,14 @@ async function mux(project: Project, tl: Timeline, framesDir: string, outFile: s
     return n++;
   };
   let fc = '';
-  // 1) speech: every line at its time, then normalised to -16 LUFS (dialogue sets the loudness of the whole video)
+  // 1) speech: every line at its time, then normalised to -14 LUFS, the level social platforms play at (dialogue sets the loudness)
   if (lines.length === 0) {
     const i = input('-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=mono');
     fc += `[${i}:a]atrim=0:${D.toFixed(3)}[speech];`;
   } else {
     const ids = lines.map((l) => ({ i: input('-i', path.join(project.dir, l.audio)), l }));
     ids.forEach(({ i, l }, k) => (fc += `[${i}:a]adelay=${ms(l.start)}:all=1[a${k}];`));
-    fc += `${ids.map((_, k) => `[a${k}]`).join('')}amix=inputs=${ids.length}:normalize=0:duration=longest,loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000[speech];`;
+    fc += `${ids.map((_, k) => `[a${k}]`).join('')}amix=inputs=${ids.length}:normalize=0:duration=longest,loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000[speech];`;
   }
   let main = 'speech';
   if (tl.music) {

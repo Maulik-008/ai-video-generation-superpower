@@ -11,8 +11,8 @@ You are the **director**. The user gives you a story, a topic or a script. You t
 ```
 understand -> ask (max 2 rounds) -> brainstorm 3 -> script + 1 confirmation -> story.json
   -> video-producer: voices -> word timing -> 60 fps render -> mix -> QA -> DONE
-  -> video-critic: contact sheet + stills + QA -> ranked fixes
-  -> you apply the technical fixes (max 1 polish round) -> deliver -> offer tweaks
+  -> video-critic: contact sheet + phone frames + motion strip + QA -> 6 scores + ranked fixes
+  -> you fix the worst 3 technical defects until every score is 8+ (max 2 rounds) -> deliver -> offer tweaks
 ```
 
 | Engine | What it makes | Needs |
@@ -32,6 +32,8 @@ If `studio/node_modules` does not exist, or a build later fails because Chrome, 
 
 Read `$ARGUMENTS` and the conversation. Fill the slots in [brainstorm.md §1](references/brainstorm.md) (premise, length, tone, world, characters, language, audience, fixed elements). If the user gave a full script, keep their words verbatim and skip the brainstorm. If they said "surprise me" or "just make it", skip all questions.
 
+**A reference** (an image, a clip, or "like this video") is the strongest brief there is: it hands over palette, pacing, type and camera in one go. When the user gives one, extract frames with the studio's ffmpeg (`-vf fps=2` for a clip) and look at them, then write `studio/projects/<slug>/style_guide.md`: the palette in hex, the mood, the set it maps to, typical shot length, cameras and moves, transitions, the caption feel, and what to avoid. Take the grammar, never the characters, logos or words of the reference. Show the style guide with the treatment, and reuse it for every later video in the same series, so the tenth video matches the first.
+
 ## 2. Ask, with options
 
 Use the `AskUserQuestion` tool for every question. Ask **only the slots still unknown**, 1 to 4 questions in one call, at most two calls before the brainstorm. The question bank, option wording and defaults are in [brainstorm.md §2](references/brainstorm.md). Never ask about voices, camera, resolution, music or colours. Choose them yourself and report them in the treatment.
@@ -48,11 +50,11 @@ Then ask the final question ([brainstorm.md §4](references/brainstorm.md)): gen
 
 ## 5. Write the project
 
-1. Repo root = the folder that contains `.claude/` and `studio/`. Create `studio/projects/<slug>/story.json` (slug from the title: lowercase, dashes; add `-2`, `-3` if the folder exists). Follow [formats/story.md](formats/story.md) exactly. Start from `studio/projects/example-small-change/story.json` for the shape.
+1. Repo root = the folder that contains `.claude/` and `studio/`. Save the approved treatment as `studio/projects/<slug>/brief.md` (the one sentence the viewer should keep, the audience, the length, the cast, the shot list), so a later session can continue from files instead of from the chat. Create `studio/projects/<slug>/story.json` (slug from the title: lowercase, dashes; add `-2`, `-3` if the folder exists). Follow [formats/story.md](formats/story.md) exactly. Start from `studio/projects/example-small-change/story.json` for the shape.
 2. If `studio/node_modules` exists, run `npm run validate -- <slug>` in `studio/` yourself and fix every problem. If it does not exist yet, skip this; the agent installs and validates.
 3. Set `resolution` to `1080p` only if the user asked for it. Leave `music` out unless the user supplied a file.
 4. **Voices.** Read `studio/voice/.status.json` if it exists. If `turbo`, `chatterbox` or `kokoro` shows `"ready": true`, give every character `voice.engine: "auto"`; otherwise leave the engine at its default (`edge`). Always set `voice.edge` to a natural voice: in English prefer the `MultilingualNeural` voices (`en-US-AndrewMultilingualNeural`, `en-US-AvaMultilingualNeural`, `en-US-BrianMultilingualNeural`, `en-US-EmmaMultilingualNeural`), which sound far more conversational. Also set `voice.kokoro`, so the local fallback is distinct too. Set `voice.delivery` to `calm` for heartfelt, apology, comfort or bedtime stories, `warm` for gentle but lively ones, and leave it `natural` for fast comedy. Give each character a different voice (for Hindi use `hi-IN-` Edge voices and the matching `language`). Use `[laugh]`, `[sigh]` or `[chuckle]` tags only when `turbo` is ready (other engines skip them), and at most one per character. If the user wants better voices and nothing local is ready, tell them that `npm run voices:setup` in `studio/` installs the free local engines (about 7 GB), and that `npm run voices:setup -- --only turbo` adds Chatterbox Turbo (about 4 GB more, English, performs the tags). Do not install anything yourself; carry on with `edge` meanwhile.
-5. **Look.** Keep the defaults (60 fps, bold captions, sound effects, ambience) unless the user asked otherwise. Set `"look": { "laptop": false }` when nothing in the story involves a computer. Put a `transition` only where the story jumps in place or time (`whip`, `zoom`), slows down for feeling (`fade`) or skips ahead (`dip`). Everything else is a cut.
+5. **Look.** Keep the defaults (the soft look with depth of field, 60 fps, bold captions, sound effects, ambience) unless the user asked otherwise (`look.style: "lowpoly"` for the faceted look, `look.depthOfField: false` when a screen or diagram must stay sharp). Set `"look": { "laptop": false }` when nothing in the story involves a computer. Put a `transition` only where the story jumps in place or time (`whip`, `zoom`), slows down for feeling (`fade`) or skips ahead (`dip`). Everything else is a cut.
 
 ## 6. Build
 
@@ -62,12 +64,12 @@ Launch the `video-producer` agent with a brief containing: `engine: studio`, the
 - `STATUS: BLOCKED`: relay the reason and the exact action (for example "install Chrome"), and when the user says it is done, continue the **same** agent with `SendMessage`.
 - `STATUS: FAILED`: report the stage and reason in plain words. If it is a story problem (validation), fix `story.json` yourself and relaunch.
 
-## 7. Review and polish (one round)
+## 7. Review and polish (until every score is 8+, at most 2 rounds)
 
-Launch the `video-critic` agent with the project folder, the video path, and anything the user said they care about. It returns a verdict, a score and at most 8 ranked fixes, each marked `technical` or `creative`.
+Launch the `video-critic` agent with the project folder, the video path, and anything the user said they care about. It returns a verdict, six scores (hook, phone, motion, variety, sound, story), an overall score, and at most 8 ranked fixes (the 3 worst first), each marked `technical` or `creative`.
 
 - `ship`: deliver. If it lists technical should-fix items, you may apply them in the one polish round first.
-- `polish`: apply the **technical** fixes yourself in `story.json` (camera, move, transition, sfx, lead / hold / pause, action, reactions, captions, laptop), run `npm run validate -- <slug>`, and relaunch the `video-producer` with "rebuild project `<slug>`". Do one polish round only, then deliver.
+- `polish`: apply the 3 worst **technical** fixes yourself in `story.json` (camera, move, transition, sfx, lead / hold / pause, action, reactions, captions, laptop), run `npm run validate -- <slug>`, relaunch the `video-producer` with "rebuild project `<slug>`", then the critic again. Stop when every score is 8 or more, or after 2 rounds, then deliver. Keep each round's critic block in `studio/projects/<slug>/reviews.md`.
 - `rework`, or any **creative** fix: do not change the user's words or plot on your own. Deliver the video and offer the creative fix as the first suggested tweak.
 
 Then tell the user the video path, its length, the voices used (and any fallback), the critic's score and strengths in one line, what you polished, and anything still imperfect. Open the folder with `explorer "<folder of the video>"`.

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import type { Action, ResolvedCharacter } from '../types';
 import type { FaceParams } from './emotions';
 import { shadowTexture } from './textures';
@@ -23,10 +24,20 @@ export interface Rig {
   update(s: CharState): void;
 }
 
-const std = (color: string, o: THREE.MeshStandardMaterialParameters = {}) =>
-  new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.78, metalness: 0.04, ...o });
-const box = (w: number, h: number, d: number, m: THREE.Material) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
-const ico = (r: number, detail: number, m: THREE.Material) => new THREE.Mesh(new THREE.IcosahedronGeometry(r, detail), m);
+// Two looks. `soft` (default): rounded "clay toy" shapes with a satin clearcoat and a velvet sheen on the edges, so the
+// studio lighting and reflections read as a real little object. `lowpoly`: the original flat-shaded facets.
+let SOFT = true;
+export function setCharacterStyle(style: 'soft' | 'lowpoly' | undefined) {
+  SOFT = style !== 'lowpoly';
+}
+const std = (color: string, o: THREE.MeshStandardMaterialParameters = {}): THREE.MeshStandardMaterial =>
+  SOFT
+    ? new THREE.MeshPhysicalMaterial({ color, roughness: 0.52, metalness: 0, clearcoat: 0.28, clearcoatRoughness: 0.4, sheen: 0.18, sheenRoughness: 0.7, sheenColor: new THREE.Color(color).lerp(new THREE.Color('#ffffff'), 0.4), ...o, flatShading: false })
+    : new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.78, metalness: 0.04, ...o });
+/** A box; in the soft look its edges are bevelled (radius about a fifth of its thinnest side). */
+const box = (w: number, h: number, d: number, m: THREE.Material) =>
+  new THREE.Mesh(SOFT && Math.min(w, h, d) > 0.06 ? new RoundedBoxGeometry(w, h, d, 4, Math.min(w, h, d) * 0.24) : new THREE.BoxGeometry(w, h, d), m);
+const ico = (r: number, detail: number, m: THREE.Material) => new THREE.Mesh(SOFT ? new THREE.SphereGeometry(r, 32, 22) : new THREE.IcosahedronGeometry(r, detail), m);
 
 // ---------------------------------------------------------------------------------------------
 // Pose: idle breathing + talking gestures + one-shot actions, all pure functions of time.
@@ -149,7 +160,8 @@ type FaceOpts = {
 
 function buildFace(o: FaceOpts) {
   const g = new THREE.Group();
-  const ink = new THREE.MeshBasicMaterial({ color: o.ink });
+  // soft look: eyes and brows are glossy, so they catch the key light and the room reflections like painted resin
+  const ink = SOFT ? new THREE.MeshPhysicalMaterial({ color: o.ink, roughness: 0.18, clearcoat: 1, clearcoatRoughness: 0.1 }) : new THREE.MeshBasicMaterial({ color: o.ink });
   const white = new THREE.MeshBasicMaterial({ color: 0xffffff });
   const eyes: THREE.Mesh[] = [];
   const glints: THREE.Mesh[] = [];
@@ -157,7 +169,7 @@ function buildFace(o: FaceOpts) {
   const brows: THREE.Mesh[] = [];
   const sides = [-1, 1];
   for (const side of sides) {
-    const eye = o.round ? new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), ink) : box(1, 1, 0.08, ink);
+    const eye = o.round ? new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), ink) : new THREE.Mesh(SOFT ? new RoundedBoxGeometry(1, 1, 0.5, 4, 0.24) : new THREE.BoxGeometry(1, 1, 0.08), ink);
     eye.position.set(side * o.eyeX, o.eyeY, o.eyeZ);
     g.add(eye);
     eyes.push(eye);
@@ -173,16 +185,40 @@ function buildFace(o: FaceOpts) {
       g.add(arc);
       arcs.push(arc);
     }
-    const brow = box(o.browW, 0.05, 0.05, ink);
+    const brow = SOFT ? new THREE.Mesh(new THREE.CapsuleGeometry(o.browW * 0.16, o.browW * 0.68, 4, 10).rotateZ(Math.PI / 2), ink) : box(o.browW, 0.05, 0.05, ink);
     g.add(brow);
     brows.push(brow);
   }
-  const arc = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.07, 6, 14, Math.PI), ink);
+  const arc = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.07, SOFT ? 10 : 6, SOFT ? 24 : 14, Math.PI), ink);
   g.add(arc);
+
+  // emotive extras, faded in and out by the spring-smoothed face: a sweat drop, tears, blush
+  const water = new THREE.MeshPhysicalMaterial({ color: '#8fd3ff', roughness: 0.05, clearcoat: 1, transparent: true, opacity: 0.9, emissive: new THREE.Color('#2a6f9e'), emissiveIntensity: 0.25 });
+  const drop = () => {
+    const d = new THREE.Group();
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), water);
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.72, 1.5, 20, 1, true), water);
+    tip.position.y = 0.95;
+    d.add(ball, tip);
+    return d;
+  };
+  const sweat = drop();
+  sweat.position.set(o.eyeX * 2.05, o.eyeY + o.browY + o.eyeH * 0.6, o.eyeZ - o.eyeW * 0.4);
+  g.add(sweat);
+  const tears = sides.map(() => drop());
+  tears.forEach((t) => g.add(t));
+  const blushMat = new THREE.MeshBasicMaterial({ color: '#ff6f8f', transparent: true, opacity: 0, depthWrite: false });
+  const blush = sides.map((side) => {
+    const b = new THREE.Mesh(new THREE.CircleGeometry(1, 24), blushMat);
+    b.position.set(side * (o.eyeX + o.eyeW * 0.9), o.eyeY - o.eyeH * 1.25, o.eyeZ + 0.004);
+    b.scale.set(o.eyeW * 1.5, o.eyeW * 0.85, 1);
+    g.add(b);
+    return b;
+  });
   const openMouth = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), new THREE.MeshBasicMaterial({ color: 0x2b0d14 }));
   g.add(openMouth);
 
-  function update(f: FaceParams, amp: number, blink: number, shape = 0.5, gaze: [number, number] = [0, 0]) {
+  function update(f: FaceParams, amp: number, blink: number, shape = 0.5, gaze: [number, number] = [0, 0], t = 0) {
     const open = clamp(f.open + amp * 0.95, 0, 1);
     const eyeOpen = f.eye * (1 - 0.93 * blink);
     const gx = gaze[0] * o.eyeW * 0.45;
@@ -207,6 +243,26 @@ function buildFace(o: FaceOpts) {
       brow.position.set(side * o.eyeX, o.eyeY + o.browY + lift + (eyeOpen - 1) * 0.02, o.eyeZ + 0.015);
       brow.rotation.z = side < 0 ? tilt : -tilt;
     });
+    // sweat drop: swells in, then slides a little down and back (a loop, so it lives while the feeling lasts)
+    const sw = clamp(f.sweat, 0, 1);
+    sweat.visible = sw > 0.04;
+    if (sweat.visible) {
+      const k = (t * 0.55) % 1;
+      sweat.scale.setScalar(o.eyeW * 0.85 * Math.sqrt(sw) * (1 + 0.08 * Math.sin(t * 6)));
+      sweat.position.y = o.eyeY + o.browY + o.eyeH * 0.6 - smoothstep(k) * o.eyeH * 0.9;
+    }
+    // tears: two drops run from the lower eye corners down the cheeks, staggered, fading at the bottom
+    const te = clamp(f.tears, 0, 1);
+    tears.forEach((d, i) => {
+      d.visible = te > 0.04;
+      if (!d.visible) return;
+      const k = (t * 0.7 + i * 0.5) % 1;
+      d.scale.setScalar(o.eyeW * 0.32 * Math.sqrt(te) * (1 - 0.6 * k));
+      d.position.set(sides[i] * (o.eyeX + o.eyeW * 0.55), o.eyeY - o.eyeH * 0.9 - k * Math.max(0.12, o.eyeY - o.mouthY), o.eyeZ + 0.01);
+    });
+    blushMat.opacity = clamp(f.blush, 0, 1) * 0.5;
+    blush.forEach((b) => (b.visible = f.blush > 0.04));
+
     const showOpen = open > 0.08;
     openMouth.visible = showOpen;
     if (showOpen) {
@@ -259,6 +315,12 @@ function makeHair(style: string, mat: THREE.Material, accent: THREE.Material, se
   cap.scale.set(bob ? 1.08 : 1.0, bob ? 0.9 : 0.72, bob ? 1.06 : 1.02);
   cap.position.set(0, bob ? 0.14 : 0.25, -0.13);
   g.add(cap);
+  if (bob && SOFT) {
+    // soft look: one smooth cap of hair that stops above the brows (a separate fringe block reads as a visor)
+    cap.scale.set(1.08, 0.92, 1.05);
+    cap.position.set(0, 0.2, -0.14);
+    return g;
+  }
   if (bob) {
     const fringe = box(0.92, 0.17, 0.2, mat);
     fringe.position.set(0, 0.36, 0.4);
@@ -403,7 +465,7 @@ function buildHuman(c: ResolvedCharacter, seed: number): Rig {
       headPivot.rotation.set(p.headX, p.headY, p.headZ);
       arms[0].rotation.set(-p.armL.fwd, 0, -p.armL.abd);
       arms[1].rotation.set(-p.armR.fwd, 0, p.armR.abd);
-      face.update(s.face, s.speak, s.blink, s.shape, s.gaze);
+      face.update(s.face, s.speak, s.blink, s.shape, s.gaze, s.t);
       shadow.scale.setScalar(1 - p.y * 0.4);
     },
   };
@@ -478,7 +540,7 @@ function buildCube(c: ResolvedCharacter): Rig {
       upper.scale.y = 1 + p.squash;
       nubs[0].rotation.set(0, p.armL.fwd * 0.8, -p.armL.abd * 0.8);
       nubs[1].rotation.set(0, -p.armR.fwd * 0.8, p.armR.abd * 0.8);
-      face.update(s.face, s.speak, s.blink, s.shape, s.gaze);
+      face.update(s.face, s.speak, s.blink, s.shape, s.gaze, s.t);
       shadow.scale.setScalar(1 - p.y * 0.4);
     },
   };
@@ -549,7 +611,7 @@ function buildBlob(c: ResolvedCharacter): Rig {
       upper.scale.set(1 - p.squash * 0.6, 1 + p.squash, 1 - p.squash * 0.6);
       nubs[0].rotation.set(0, p.armL.fwd * 0.8, -p.armL.abd * 0.9);
       nubs[1].rotation.set(0, -p.armR.fwd * 0.8, p.armR.abd * 0.9);
-      face.update(s.face, s.speak, s.blink, s.shape, s.gaze);
+      face.update(s.face, s.speak, s.blink, s.shape, s.gaze, s.t);
       shadow.scale.setScalar(1 - p.y * 0.4);
     },
   };

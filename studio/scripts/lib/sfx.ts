@@ -12,7 +12,7 @@ const SFX_DIR = path.join(CACHE_DIR, 'sfx');
 const VERSION = 'v1';
 const RATE = 48000;
 
-/** How loud each effect sits in the mix (linear gain on a clip peaking at -3 dBFS; speech is normalised to -16 LUFS). */
+/** How loud each effect sits in the mix (linear gain on a clip peaking at -3 dBFS; speech is normalised to -14 LUFS). */
 export const SFX_GAIN: Record<Sfx, number> = { whoosh: 0.32, pop: 0.3, ding: 0.22, boing: 0.26, thud: 0.4, sparkle: 0.18, type: 0.16, 'swoosh-up': 0.22 };
 
 const tone = (expr: string, d: number) => ['-f', 'lavfi', '-i', `aevalsrc='${expr}':s=${RATE}:d=${d}`];
@@ -32,7 +32,7 @@ const RECIPES: Record<Sfx, { input: string[]; af?: string }> = {
   'swoosh-up': { input: tone('0.5*sin(2*PI*(220*t+700*t*t))*pow(sin(PI*t/0.5),2)', 0.5), af: 'aecho=0.8:0.5:60:0.25' },
 };
 
-/** Room tone per set: what you would hear in that place with nobody talking. Kept very quiet (about -47 LUFS). */
+/** Room tone per set: what you would hear in that place with nobody talking. Kept very quiet (about -45 LUFS). */
 const AMBIENCE: Record<SetName, (d: number) => { input: string[]; af: string }> = {
   'skyline-night': (d) => ({ input: noise('brown', d, 'lowpass=f=520,highpass=f=40'), af: 'tremolo=f=0.13:d=0.25' }),
   'cozy-room': (d) => ({ input: noise('brown', d, 'lowpass=f=320,highpass=f=35'), af: 'tremolo=f=0.1:d=0.1' }),
@@ -41,7 +41,7 @@ const AMBIENCE: Record<SetName, (d: number) => { input: string[]; af: string }> 
   'space-stage': (d) => ({ input: tone('0.4*sin(2*PI*55*t)+0.25*sin(2*PI*82.41*t+0.5*sin(2*PI*0.1*t))+0.12*sin(2*PI*110.3*t)', d), af: 'tremolo=f=0.11:d=0.35,lowpass=f=600' }),
   studio: (d) => ({ input: noise('brown', d, 'lowpass=f=400,highpass=f=40'), af: 'tremolo=f=0.1:d=0.08' }),
 };
-const AMBIENCE_LUFS = -47;
+const AMBIENCE_LUFS = -45; // about 31 dB under the speech
 
 async function measure(file: string, what: 'peak' | 'lufs'): Promise<number> {
   const bin = await ffmpegPath();

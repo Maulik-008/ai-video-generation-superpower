@@ -200,6 +200,8 @@ export async function buildTimeline(story: Story, projectDir: string, bank: Voic
       captionSize: story.look.captions.size ?? (story.look.captions.style === 'classic' ? 0.034 : 0.05),
       handheld: story.look.handheld,
       laptop: story.look.laptop,
+      style: story.look.style,
+      depthOfField: story.look.depthOfField,
     },
     characters,
     shots,

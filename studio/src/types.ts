@@ -118,6 +118,8 @@ export const StorySchema = z.object({
         })
         .default({}),
       handheld: z.boolean().default(true),
+      style: z.enum(['soft', 'lowpoly']).default('soft'), // soft = rounded, glossy "clay toy" characters, soft shadows, reflections, bloom; lowpoly = the older flat-shaded look
+      depthOfField: z.boolean().default(true), // soft style only: the background melts into bokeh behind the character in focus
       sfx: z.boolean().default(true), // automatic sound effects (whoosh on whip/zoom transitions, pop on titles, boing on jumps, typing on inserts)
       ambience: z.boolean().default(true), // quiet room tone for each set, so pauses never fall into dead digital silence
       laptop: z.boolean().default(true), // the laptop prop in front of the cast; false hides it except in insert shots
@@ -188,7 +190,7 @@ export type Timeline = {
   height: number;
   fps: number;
   frames: number;
-  look: { captionStyle: CaptionStyle; captionPosition: 'top' | 'middle' | 'bottom'; captionSize: number; handheld: boolean; laptop?: boolean };
+  look: { captionStyle: CaptionStyle; captionPosition: 'top' | 'middle' | 'bottom'; captionSize: number; handheld: boolean; laptop?: boolean; style?: 'soft' | 'lowpoly'; depthOfField?: boolean };
   characters: ResolvedCharacter[];
   shots: TLShot[];
   music?: { src: string; volume: number };

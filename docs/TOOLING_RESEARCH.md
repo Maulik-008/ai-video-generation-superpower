@@ -61,3 +61,21 @@ A post recommended 14 free repos for making AI videos "less boring": voice, capt
 - faster-whisper: https://github.com/SYSTRAN/faster-whisper (MIT)
 - Remotion licence: https://www.remotion.dev/license
 - GSAP licence: https://gsap.com/standard-license
+
+## Round 2: the "Opus 5.5 motion design" article and the reference reel
+
+The follow-up article (@seeconvm, "What the viral one-prompt videos are hiding") and its reel, a soft orange cube mascot in a "Motion Mart" shop, set the visual and process bar. All 13 links in the post point to the repos above. What the article recommends, and where it now lives here:
+
+| The article's piece | Here |
+|---|---|
+| **Frame function**: `seek(t)` paints any frame on its own, no timers, seeded noise | Already the design (`window.studio.renderFrame(frame)`, precomputed tracks, seeded `rng`). New: QA **renders a frame twice, and on a second page, and compares the pixels** (PSNR; GPU rounding of about 100 dB passes, a real state bug does not) |
+| **The brief**: a production document, not a vibe | The director saves the approved treatment as `projects/<slug>/brief.md` |
+| **The reference**: borrow a visual grammar from a frame or clip | A user reference becomes `projects/<slug>/style_guide.md` (palette, set, shot length, cameras, transitions, what to avoid), reused for the whole series. Take the grammar, never the subjects |
+| **Springs and sound on one clock** | Closed-form springs for captions, titles and punch-ins; springs for expressions and turns; effects synthesised by ffmpeg and placed on the timeline's frames. Loudness raised to **-14 LUFS** |
+| **The critic**: contact sheet, strip around the fastest move, phone test at 360 px, determinism; score 1-10, fix the worst 3, repeat until 8+ | `npm run qa` now writes `phone/`, `strip.jpg`, a poster frame and the determinism result. The `video-critic` gives six 1-10 scores (hook, phone, motion, variety, sound, story) and the 3 worst defects first; the director loops until every score is 8+, at most 2 rounds, logging each in `reviews.md` |
+| **Banned defaults** (centred title on a gradient, everything fading in...) | A "Banned defaults" list in `references/quality.md` |
+| **The skill**: decisions in files, gates | `brief.md`, `style_guide.md`, `story.json`, `reviews.md` per project; the one confirmation before the build is the gate |
+
+**The look of the reference reel** (rounded, glossy toy characters, soft light, a background melting into bokeh) became the new default `look.style: "soft"`. It uses rounded-box geometry, physical materials with clearcoat and sheen, glossy pill eyes and capsule brows, a studio environment map, soft shadow maps, depth of field focused on the subject, a gentle bloom, and emotion extras (a sweat drop, tears, blush). All of it comes from three.js's own examples (MIT): `RoundedBoxGeometry`, `RoomEnvironment`, `EffectComposer`, `BokehPass`, `UnrealBloomPass` and `OutputPass`. Nothing new is installed. `look.style: "lowpoly"` keeps the old look.
+
+Not adopted from the article: generate-then-trace with a video model (Seedance) and overnight 12-hour runs. Both need paid services or accounts, which this repo avoids.

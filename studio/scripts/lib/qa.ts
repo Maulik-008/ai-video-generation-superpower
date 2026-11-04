@@ -12,9 +12,15 @@ import { MODELS_DIR, venvPython } from './voices/engines.ts';
 import { languageOf } from './voices/presets.ts';
 import { STUDIO_ROOT } from './paths.ts';
 import { validateStory } from './story.ts';
+import { determinismCheck } from './render.ts';
 
 export type Finding = { level: 'fail' | 'warn' | 'info'; area: 'picture' | 'sound' | 'pacing' | 'captions' | 'speech'; message: string; shot?: string; fix?: string };
-export type QaReport = { video: string; seconds: number; width: number; height: number; fps: number; loudness?: number; truePeak?: number; speechMatch?: number; wordTiming: { whisper: number; estimate: number }; sheet: string; findings: Finding[]; verdict: 'pass' | 'warn' | 'fail' };
+export type QaReport = {
+  video: string; seconds: number; width: number; height: number; fps: number;
+  loudness?: number; truePeak?: number; speechMatch?: number; deterministic?: boolean;
+  wordTiming: { whisper: number; estimate: number };
+  sheet: string; strip?: string; phone: string[]; findings: Finding[]; verdict: 'pass' | 'warn' | 'fail';
+};
 
 async function ffLog(args: string[]): Promise<string> {
   const bin = await ffmpegPath();
@@ -29,10 +35,12 @@ async function ffLog(args: string[]): Promise<string> {
 const ranges = (text: string, key: string) =>
   [...text.matchAll(new RegExp(`${key}_start:\\s*([\\d.]+)[\\s\\S]*?${key}_end:\\s*([\\d.]+)`, 'g'))].map((m) => [Number(m[1]), Number(m[2])] as [number, number]);
 
-export async function runQa(project: Project, tl: Timeline, video: string, opts: { listen?: boolean; log: (m: string) => void }): Promise<QaReport> {
+export async function runQa(project: Project, tl: Timeline, video: string, opts: { listen?: boolean; determinism?: boolean; log: (m: string) => void }): Promise<QaReport> {
   const { log } = opts;
   const dir = path.join(project.outDir, 'qa');
   fs.mkdirSync(dir, { recursive: true });
+  // frames a critic extracted from an earlier build would mix rounds: each new video starts a clean evidence folder
+  for (const f of fs.readdirSync(dir)) if (/^(cut-|cuts-|phone-)/.test(f)) fs.rmSync(path.join(dir, f), { force: true });
   const findings: Finding[] = [];
   const add = (f: Finding) => findings.push(f);
   const fps = tl.fps;
@@ -68,7 +76,7 @@ export async function runQa(project: Project, tl: Timeline, video: string, opts:
   const TP = /True peak:\s*Peak:\s*(-?[\d.]+)/.exec(snd);
   const loudness = I ? Number(I[1]) : undefined;
   const truePeak = TP ? Number(TP[1]) : undefined;
-  if (loudness !== undefined && (loudness < -19 || loudness > -13)) add({ level: 'warn', area: 'sound', message: `loudness ${loudness} LUFS (social video aims for about -16)` });
+  if (loudness !== undefined && (loudness < -17 || loudness > -11)) add({ level: 'warn', area: 'sound', message: `loudness ${loudness} LUFS (social platforms play at about -14)` });
   if (truePeak !== undefined && truePeak > -0.5) add({ level: 'warn', area: 'sound', message: `true peak ${truePeak} dBTP: risk of distortion on phones` });
   for (const [a, b] of ranges(snd, 'silence')) if (a > 0.3 && b < seconds - 0.8) add({ level: 'warn', area: 'sound', message: `digital silence from ${a.toFixed(1)}s to ${b.toFixed(1)}s`, shot: shotAt(a) });
 
@@ -102,12 +110,47 @@ export async function runQa(project: Project, tl: Timeline, video: string, opts:
   const step = Math.max(0.2, seconds / tiles);
   await runFfmpeg(['-i', video, '-vf', `fps=${(1 / step).toFixed(4)},scale=${tl.width > tl.height ? 320 : 180}:-1,tile=${cols}x${Math.ceil(tiles / cols)}:padding=4:color=0x111111`, '-frames:v', '1', '-q:v', '3', sheet]);
 
+  // ---- phone test: one frame per shot at 360 px wide, the size most people will watch it -----------
+  const phoneDir = path.join(dir, 'phone');
+  fs.rmSync(phoneDir, { recursive: true, force: true });
+  fs.mkdirSync(phoneDir, { recursive: true });
+  const phone: string[] = [];
+  for (const s of tl.shots) {
+    const l = s.lines[0];
+    const t = sec(l ? (l.start + l.end) / 2 : (s.start + s.end) / 2);
+    const file = path.join(phoneDir, `${s.id}.jpg`);
+    await runFfmpeg(['-ss', t.toFixed(3), '-i', video, '-frames:v', '1', '-vf', `scale=${tl.width > tl.height ? 640 : 360}:-1`, '-q:v', '3', file]);
+    phone.push(file);
+  }
+
+  // ---- motion strip: 12 consecutive frames around the fastest move (the first non-cut transition, else the first jump) ----
+  let strip: string | undefined;
+  const moving = tl.shots.find((s, i) => i > 0 && s.transition !== 'cut')?.start ?? lines.find((l) => l.action === 'jump')?.start;
+  if (moving !== undefined) {
+    strip = path.join(dir, 'strip.jpg');
+    const from = Math.max(0, sec(moving) - 3 / fps);
+    await runFfmpeg(['-ss', from.toFixed(3), '-i', video, '-frames:v', '1', '-vf', `scale=${tl.width > tl.height ? 320 : 200}:-1,tile=6x2:padding=3:color=0x111111`, '-q:v', '3', strip]);
+  }
+
+  // ---- determinism: any frame must render the same however it is reached -----------------------
+  let deterministic: boolean | undefined;
+  if (opts.determinism !== false) {
+    try {
+      const probe = lines[Math.floor(lines.length / 2)];
+      const r = await determinismCheck(tl, probe ? Math.round((probe.start + probe.end) / 2) : Math.floor(tl.frames / 2), log);
+      deterministic = r.ok;
+      if (!r.ok) add({ level: 'fail', area: 'picture', message: `a frame renders visibly differently when reached another way (${r.detail}): something depends on timers, randomness or the previous frame`, fix: 'engine bug: report it' });
+    } catch (e) {
+      add({ level: 'info', area: 'picture', message: `determinism check could not run: ${(e as Error).message}` });
+    }
+  }
+
   // ---- optional: does the final mix say the script? -------------------------------------------
   let speechMatch: number | undefined;
   if (opts.listen) speechMatch = await listen(project, tl, video, findings, log);
 
   const verdict: QaReport['verdict'] = findings.some((f) => f.level === 'fail') ? 'fail' : findings.some((f) => f.level === 'warn') ? 'warn' : 'pass';
-  const report: QaReport = { video, seconds, width, height, fps: vfps, loudness, truePeak, speechMatch, wordTiming: { whisper: lines.length - est, estimate: est }, sheet, findings, verdict };
+  const report: QaReport = { video, seconds, width, height, fps: vfps, loudness, truePeak, speechMatch, deterministic, wordTiming: { whisper: lines.length - est, estimate: est }, sheet, strip, phone, findings, verdict };
   fs.writeFileSync(path.join(dir, 'report.json'), JSON.stringify(report, null, 2));
   return report;
 }
@@ -154,5 +197,5 @@ async function listen(project: Project, tl: Timeline, video: string, findings: F
 export function printQa(r: QaReport, log: (m: string) => void) {
   log(`QA: ${r.verdict.toUpperCase()}  ${r.seconds.toFixed(1)}s ${r.width}x${r.height} @${r.fps}fps · loudness ${r.loudness ?? '?'} LUFS · true peak ${r.truePeak ?? '?'} dBTP${r.speechMatch !== undefined ? ` · speech match ${(r.speechMatch * 100).toFixed(0)}%` : ''}`);
   for (const f of r.findings) log(`  ${f.level.toUpperCase().padEnd(4)} ${f.area.padEnd(8)} ${f.shot ? `[${f.shot}] ` : ''}${f.message}${f.fix ? `  -> ${f.fix}` : ''}`);
-  log(`  contact sheet: ${r.sheet}`);
+  log(`  contact sheet: ${r.sheet}${r.strip ? `\n  motion strip:  ${r.strip}` : ''}\n  phone frames:  ${path.dirname(r.phone[0] ?? r.sheet)}`);
 }

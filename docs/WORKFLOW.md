@@ -59,3 +59,13 @@ The flow was run on a new story, `battery-low` (3 characters, 2 sets, 10 shots, 
 4. **Polish build**: all four fixes applied; QA: PASS, 98%.
 
 Regression: `example-small-change`, `hindi-chai` (Devanagari bold captions render correctly) and `the-3am-deploy` all rebuild. QA correctly flags their older pacing (a 2.5 s title card before the hook, three close-ups in a row, Edge lines at 4+ words per second).
+
+### Round 2 of the live test: the soft look and the scored critic
+
+| Pass | Verdict | hook | phone | motion | variety | sound | story | Overall |
+|---|---|---|---|---|---|---|---|---|
+| Soft look, first build | polish | 8 | 8 | 6 | 8 | 7 | 7 | 70 |
+| After the 3 worst fixes (s06 punch-in pushed Momo off-frame, s02 close cropped Maya, s01 hook framing) | polish | 8 | 7 | 8 | 8 | 8 | 8 | 82 |
+| After the 2-round cap: s02 and s06 made static so no face rises into the caption band | delivered | | | | | | | QA PASS, 98% speech match, deterministic |
+
+The critic's creative suggestions were not applied, because they change the story and need the user's yes. They were: recolour Zip so he separates from the red cozy room (rubric B10), and say "Momo, the cat" so the blob reads as a cat.
