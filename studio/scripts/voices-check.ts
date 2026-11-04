@@ -22,7 +22,8 @@ const log = () => {};
 for (const engine of wanted) {
   const st = engineState(engine, true);
   if (st.state === 'missing') {
-    rows.push({ engine, result: 'UNAVAILABLE', detail: st.reason ?? '' });
+    const notInstalled = st.reason?.startsWith('not installed') || st.reason?.startsWith('model');
+    rows.push({ engine, result: notInstalled ? 'NOT INSTALLED' : 'UNAVAILABLE', detail: notInstalled ? 'optional: add it by running  node setup.mjs' : st.reason ?? '' });
     if (engine === 'kokoro' || engine === 'chatterbox') status[engine] = { ready: false, checkedAt: new Date().toISOString(), note: st.reason };
     continue;
   }

@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import type { Timeline } from '../../src/types.ts';
 import type { Browser, Page } from 'puppeteer-core';
-import { launch } from './browser.ts';
+import { findBrowser, launch } from './browser.ts';
 import { probeMedia, runFfmpeg } from './ffmpeg.ts';
 import type { Project } from './paths.ts';
 import { buildPlayer, grabFrame, openPlayer } from './player.ts';
@@ -21,6 +21,7 @@ async function startPages(count: number, tl: Timeline, log: (m: string) => void)
     pages.push(await openPlayer(b, url, tl));
   }
   const renderer = pages[0].renderer;
+  log(`Browser: ${findBrowser()}`);
   log(/swiftshader|software|llvmpipe/i.test(renderer) ? `WebGL: ${renderer} (software rendering; this will be slow)` : `WebGL: ${renderer}`);
   const close = async () => {
     await Promise.all(browsers.map((b) => b.close().catch(() => {})));

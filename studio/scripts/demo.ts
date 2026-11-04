@@ -2,9 +2,9 @@
 //   npm run demo                (English + Hindi)         npm run demo -- --lang en
 // Videos go to  <Videos>/VideoStudio/voice-demo/  together with a README that says which file is which.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { parseCli } from './lib/args.ts';
+import { outputRoot } from './lib/config.ts';
 import { runBuild } from './lib/build.ts';
 import { resolveProject } from './lib/paths.ts';
 import { log } from './lib/pipeline.ts';
@@ -20,7 +20,7 @@ const variants: { id: string; provider: EngineName; delivery: Delivery; what: st
   { id: 'chatterbox-calm', provider: 'chatterbox', delivery: 'calm', what: 'Chatterbox (local, most expressive), calm delivery, emotion-driven' },
 ];
 
-const outDir = path.join(os.homedir(), 'Videos', 'VideoStudio', 'voice-demo');
+const outDir = path.join(outputRoot(), 'voice-demo');
 const rows: string[] = [];
 for (const lang of langs) {
   const slug = `demo-quiet-apology-${lang}`;

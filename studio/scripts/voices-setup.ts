@@ -5,6 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
+import { loadConfig, speechCheckEnabled, voiceHome } from './lib/config.ts';
 import { STUDIO_ROOT } from './lib/paths.ts';
 import { MODELS_DIR, venvPython } from './lib/voices/engines.ts';
 
@@ -22,6 +23,12 @@ const quiet = (cmd: string, args: string[]) => spawnSync(cmd, args, { encoding: 
 
 /** A Python 3.10 to 3.13 (3.11 preferred: Chatterbox is tested on it). */
 function findPython(prefer311: boolean): string {
+  const chosen = loadConfig().voices?.python;
+  if (chosen) {
+    const r = quiet(chosen, ['-c', 'import sys;print(sys.version_info[0], sys.version_info[1])']);
+    if (r.status === 0) return chosen;
+    throw new Error(`The Python you chose in setup (${chosen}) does not run. Re-run: node setup.mjs`);
+  }
   const candidates = process.platform === 'win32' ? [['py', '-3.11'], ['py', '-3.12'], ['py', '-3.10'], ['python']] : [['python3.11'], ['python3.12'], ['python3.10'], ['python3']];
   const ok: { cmd: string[]; v: string }[] = [];
   for (const c of candidates) {
@@ -41,7 +48,7 @@ function findPython(prefer311: boolean): string {
 async function ensureVenv(engine: 'kokoro' | 'chatterbox') {
   if (fs.existsSync(venvPython(engine))) return;
   step(`creating the ${engine} Python environment`);
-  const code = await run(findPython(engine === 'chatterbox'), ['-m', 'venv', path.join(STUDIO_ROOT, `.venv-${engine}`)]);
+  const code = await run(findPython(engine === 'chatterbox'), ['-m', 'venv', path.join(voiceHome(), `.venv-${engine}`)]);
   if (code !== 0) throw new Error('could not create the Python environment');
 }
 const canImport = (engine: 'kokoro' | 'chatterbox', mod: string) => quiet(venvPython(engine), ['-c', `import ${mod}`]).status === 0;
@@ -99,8 +106,9 @@ async function setupChatterbox() {
   step('Chatterbox model weights (about 3.3 GB on first run)');
   fs.mkdirSync(path.join(MODELS_DIR, 'chatterbox'), { recursive: true });
   const { runWorker, verifyExtra } = await import('./lib/voices/engines.ts');
-  step('Speech-check model (Whisper, about 1 GB): Chatterbox listens to its own output and retries bad takes');
-  const { result } = await runWorker('chatterbox', [], (m) => console.log(m), verifyExtra());
+  if (speechCheckEnabled()) step('Speech-check model (Whisper, about 1 GB): Chatterbox listens to its own output and retries bad takes');
+  else console.log('\n== Speech check is switched off in your setup: Chatterbox will not download Whisper (less reliable on very short lines)');
+  const { result } = await runWorker('chatterbox', [], (m) => console.log(m), verifyExtra());  // verifyExtra() is empty when the check is off
   if (!result.ok) throw new Error(result.error ?? 'could not load the Chatterbox model');
   console.log(`  model ready on ${result.info?.device}${result.info?.gpu ? ` (${result.info.gpu})` : ''}; speech check: ${result.info?.verify ?? 'off'}`);
   if (String(result.info?.verify ?? '').startsWith('unavailable')) console.log('  note: Chatterbox will still work, but without the speech check (less reliable on very short lines).');

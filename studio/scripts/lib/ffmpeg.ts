@@ -1,16 +1,50 @@
 import { spawn, spawnSync } from 'node:child_process';
+import { loadConfig } from './config.ts';
 
 let cached: string | undefined;
 
-/** Prefer an ffmpeg already on PATH, otherwise the binary shipped by the ffmpeg-static package. */
+const works = (bin: string) => spawnSync(bin, ['-version'], { stdio: 'ignore' }).status === 0;
+
+/**
+ * Which ffmpeg to use, following the choice made in setup:
+ *   system  - the one on PATH only        custom - a path you gave        bundled - the ffmpeg-static download first
+ * With no setup done it behaves as before: PATH first, then the bundled binary.
+ */
 export async function ffmpegPath(): Promise<string> {
   if (cached) return cached;
-  const onPath = spawnSync('ffmpeg', ['-version'], { stdio: 'ignore' });
-  if (onPath.status === 0) return (cached = 'ffmpeg');
-  const mod = await import('ffmpeg-static');
-  const p = (mod.default as unknown as string | null) ?? null;
-  if (!p) throw new Error('ffmpeg not found. Install ffmpeg or run `npm install` in studio/ again.');
-  return (cached = p);
+  const cfg = loadConfig().ffmpeg;
+  const fromEnv = process.env.FFMPEG_PATH;
+  if (fromEnv) {
+    if (works(fromEnv)) return (cached = fromEnv);
+    throw new Error(`FFMPEG_PATH is set to "${fromEnv}" but that is not a working ffmpeg.`);
+  }
+  if (cfg?.mode === 'custom' && cfg.path) {
+    if (works(cfg.path)) return (cached = cfg.path);
+    throw new Error(`The ffmpeg you chose in setup ("${cfg.path}") does not work. Re-run setup (node setup.mjs) or fix the path in studio/.studio-setup.json.`);
+  }
+  const bundled = async (): Promise<string | null> => {
+    try {
+      const mod = await import('ffmpeg-static');
+      const p = (mod.default as unknown as string | null) ?? null;
+      return p && works(p) ? p : null;
+    } catch {
+      return null;
+    }
+  };
+  if (cfg?.mode === 'system') {
+    if (works('ffmpeg')) return (cached = 'ffmpeg');
+    throw new Error('ffmpeg was not found on your PATH, but setup was told to use the system ffmpeg. Install ffmpeg, or re-run setup (node setup.mjs) and choose another option.');
+  }
+  if (cfg?.mode === 'bundled') {
+    const p = await bundled();
+    if (p) return (cached = p);
+    if (works('ffmpeg')) return (cached = 'ffmpeg');
+  } else {
+    if (works('ffmpeg')) return (cached = 'ffmpeg');
+    const p = await bundled();
+    if (p) return (cached = p);
+  }
+  throw new Error('ffmpeg not found. Install ffmpeg, or run setup (node setup.mjs) and let it download one.');
 }
 
 /** Read duration / size / streams of a media file by parsing `ffmpeg -i` output. */

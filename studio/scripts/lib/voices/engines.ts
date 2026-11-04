@@ -8,6 +8,7 @@ import { spawn } from 'node:child_process';
 import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
 import type { Delivery, Emotion } from '../../../src/types.ts';
 import { runFfmpeg } from '../ffmpeg.ts';
+import { voiceHome, speechCheckEnabled } from '../config.ts';
 import { STUDIO_ROOT } from '../paths.ts';
 import { parseWav, type Pcm } from '../wav.ts';
 import { chatterboxParams, DELIVERY, edgeProsody, kokoroLang, kokoroSpeed, languageOf, pickKokoroVoice, type Voice } from './presets.ts';
@@ -18,7 +19,7 @@ export type Task = { key: string; sentences: string[]; voice: Voice; emotion: Em
 export type Log = (m: string) => void;
 
 const VOICE_DIR = path.join(STUDIO_ROOT, 'voice');
-export const MODELS_DIR = path.join(STUDIO_ROOT, '.models');
+export const MODELS_DIR = path.join(voiceHome(), '.models');
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'video-studio-'));
 
 // ---- availability ---------------------------------------------------------------------------
@@ -34,7 +35,7 @@ export function readStatus(): Status {
 }
 
 export function venvPython(engine: 'kokoro' | 'chatterbox'): string {
-  const dir = path.join(STUDIO_ROOT, `.venv-${engine}`);
+  const dir = path.join(voiceHome(), `.venv-${engine}`);
   return process.platform === 'win32' ? path.join(dir, 'Scripts', 'python.exe') : path.join(dir, 'bin', 'python');
 }
 
@@ -270,7 +271,7 @@ const kokoro: EngineImpl = {
 };
 
 /** Chatterbox checks its own speech with Whisper (transcribe, compare, retry). Set VIDEO_STUDIO_NO_VERIFY=1 to skip it. */
-export const verifyEnabled = () => process.env.VIDEO_STUDIO_NO_VERIFY !== '1';
+export const verifyEnabled = () => speechCheckEnabled();
 export const verifyExtra = (): Record<string, unknown> => (verifyEnabled() ? { verify: { model: 'openai/whisper-small', min_en: 0.85, min_other: 0.7, min_short: 0.55 } } : {});
 
 const chatterbox: EngineImpl = {

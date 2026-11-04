@@ -8,3 +8,7 @@ studio/.venv-*/
 studio/.models/
 studio/voice/.status.json
 studio/projects/*/voices-report.json
+studio/.studio-setup.json
+studio/.studio-setup.answers.json
+studio/.browsers/
+studio/output/

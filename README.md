@@ -17,27 +17,32 @@ A 30-second vertical video builds in about 30 seconds on a machine with a GPU.
 
 ## Quick start
 
-### 1. Requirements
+### 1. First-time setup: you choose what gets installed
 
-| Need | Notes |
+You only need **Node.js 20+**. Then run the setup wizard from the repo root:
+
+```
+node setup.mjs        # any OS.  Also: .\setup.cmd or .\setup.ps1 on Windows, bash setup.sh on macOS and Linux
+```
+
+Or, in Claude Code, open this folder and type `/setup-video-studio`: it asks the same questions as multiple-choice.
+
+**Nothing is downloaded or installed unless you choose it, and you see the size first.** The wizard looks at your machine, asks one question at a time, shows a plan with the total download and disk use, and only then acts:
+
+| You choose | Options |
 |---|---|
-| **Claude Code** | to use the director skill and agent. Not needed for the command-line route |
-| **Node.js 20+** | |
-| **Google Chrome or Microsoft Edge** | found automatically; set `CHROME_PATH` to use another Chromium |
-| **Internet** | for the voices and the first `npm install`. Fully offline voices are available on Windows (`--provider sapi`) |
-| ffmpeg | optional: used from your PATH if present, otherwise installed by `npm install` |
-| Better voices (optional) | an NVIDIA GPU for the most expressive engine (Chatterbox) and about 7 GB of disk. Kokoro needs no GPU. See [Better voices](#better-voices-calm-warm-emotional) |
+| Code packages (about 110 MB) | install with npm / pnpm / yarn · keep · reinstall · skip |
+| ffmpeg | use yours · download one (83 MB) · a path you give · later |
+| Browser | your Chrome or Edge · a private Chrome download (about 210 MB) · a path you give · later |
+| Local voices (optional) | Kokoro (about 350 MB) · Chatterbox (about 5.8 GB, NVIDIA GPU) · both · none; plus the Whisper speech check (1 GB), which drive or folder they live in, and which Python |
+| Where videos are saved | your Videos folder · inside the repo · a folder you choose |
+| How much to verify | health check · sample video · full voice demo · nothing |
 
-Tested on Windows 11 with an NVIDIA GPU. The macOS and Linux browser paths are coded but not tested, and the offline voice is Windows-only.
+Without the local voices everything still works, using the free Microsoft Edge voices. Full guide, every option, scripted and CI use, and how to see or remove things: [docs/SETUP.md](docs/SETUP.md).
 
-### 2. Install once
+Tested on Windows 11 with an NVIDIA GPU. The macOS and Linux paths are coded but not tested, and the offline Windows voice is Windows-only.
 
-```
-cd studio
-npm install
-```
-
-### 3. Make a video
+### 2. Make a video
 
 **With Claude (recommended).** Start Claude Code in this folder, so it picks up the skill and the agent, and describe what you want:
 
@@ -56,11 +61,11 @@ cd studio
 npm run build -- the-3am-deploy
 ```
 
-The video is saved to `%USERPROFILE%\Videos\VideoStudio\<slug>.mp4` (`~/Videos/VideoStudio` on macOS and Linux). The working files (script, voices, preview frames) stay in `studio/projects/<slug>/`, so changes re-render in about 30 seconds and unchanged voices are reused.
+The video is saved to the folder you chose in setup (by default `%USERPROFILE%\Videos\VideoStudio\<slug>.mp4`, `~/Videos/VideoStudio` on macOS and Linux). The working files (script, voices, preview frames) stay in `studio/projects/<slug>/`, so changes re-render in about 30 seconds and unchanged voices are reused.
 
-### 4. Better voices (optional, free, local)
+### 3. Better voices (optional, free, local)
 
-The default voices are the free Microsoft Edge voices. For calm, warm, emotional delivery, install the two local engines once (about 7 GB, into git-ignored folders) and check them:
+The setup wizard offers these. You can also add them later with the wizard, or directly (about 7 GB for both, into git-ignored folders):
 
 ```
 cd studio
@@ -186,6 +191,7 @@ Run from `studio/`. `<slug>` is a folder name under `studio/projects/`.
 | `npm run preview -- <slug>` | One still frame per shot in `out/stills/` (`--shots s01,s03`, `--frames 120,400`) |
 | `npm run render -- <slug>` | Renders `out/<slug>.mp4` |
 | `npm run build -- <slug>` | All of the above, then copies the MP4 to your Videos folder |
+| `node setup.mjs` (repo root) | The first-time setup wizard; also `--status`, `--plan`, `--apply`, `--verify`, `--remove` (see [docs/SETUP.md](docs/SETUP.md)) |
 | `npm run voices:setup` | Installs the Kokoro and Chatterbox voice engines (`-- --only kokoro` for one) |
 | `npm run voices:check` | Makes a real test sentence with every engine and records which are ready |
 | `npm run demo` | Builds the voice demo (English and Hindi, four voice variants) into `Videos\VideoStudio\voice-demo\` |

@@ -1,10 +1,13 @@
 import fs from 'node:fs';
 import puppeteer, { type Browser } from 'puppeteer-core';
+import { loadConfig } from './config.ts';
 
 /** Any installed Chromium-based browser works. Set CHROME_PATH to override. */
 export function findBrowser(): string {
   const env = process.env.CHROME_PATH;
   if (env && fs.existsSync(env)) return env;
+  const chosen = loadConfig().browser?.path; // set by setup: a private Chrome download or a custom path
+  if (chosen && fs.existsSync(chosen)) return chosen;
   const local = process.env.LOCALAPPDATA ?? '';
   const candidates =
     process.platform === 'win32'

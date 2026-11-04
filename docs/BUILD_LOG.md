@@ -459,3 +459,57 @@ Session totals now: 191 API calls, about 663,000 cache-write tokens, about 466,0
 ### Files added or changed
 
 `studio/scripts/lib/voices/` (presets, engines, audio, bank), `studio/scripts/voices-setup.ts`, `voices-check.ts`, `demo.ts`, `lib/build.ts`, `studio/voice/` (Kokoro and Chatterbox workers, the optional Whisper checker), two demo stories, the schema and CLI flags, the timeline builder, and the README, skill, format, engine and question-bank documents.
+
+
+---
+
+## 12. Addendum: first-time setup for any developer
+
+### What you asked
+
+"Write some script or setup related code so any developer with this repo can use it. You can ask preferences, then set up based on the answers, or create a Claude skill for it. Create a first-time initial setup. Make sure local download and installation is the developer's choice: always ask, and provide all the choices."
+
+### What was built
+
+| Piece | File | What it does |
+|---|---|---|
+| **Setup wizard** | `setup.mjs` (repo root) | Zero-dependency Node script, so it runs on a fresh clone before `npm install`. Detects the machine, asks every choice one at a time with sizes, shows a plan with total download and disk use, asks for a final yes, then does only what was chosen. Also `--detect`, `--status`, `--plan`, `--apply`, `--verify`, `--remove`, `--dry-run` |
+| **Launchers** | `setup.cmd`, `setup.ps1`, `setup.sh` | Only check that Node 20+ exists and run the wizard. They never install anything |
+| **Claude skill** | `.claude/skills/setup-video-studio/` | Asks the same choices as multiple-choice (`AskUserQuestion`), writes an answers file, shows the plan, asks once more, then runs the wizard non-interactively. Has a reference of every choice, size and the answers format |
+| **Config** | `studio/scripts/lib/config.ts` + `studio/.studio-setup.json` | The studio now honours the choices: which ffmpeg, which browser, where voice models live, where videos go, whether the speech check is on |
+| **Private Chrome** | `studio/scripts/install-browser.ts` | Optional download of Chrome for Testing into `studio/.browsers` |
+| **Guide** | `docs/SETUP.md`, README Quick start | Every option, scripted and CI use, remove, troubleshoot |
+
+### The choices a developer gets (nothing is on by default)
+
+Code packages (npm, pnpm or yarn; keep; reinstall; skip) · ffmpeg (system, download 83 MB, custom path, later) · browser (system, private download about 210 MB, custom path, later) · local voices (Kokoro about 350 MB, Chatterbox about 5.8 GB, both, none) · the Whisper speech check (1 GB, on or off) · where the voice environments and models live (the repo or any folder or drive) · which Python · where videos are saved (Videos folder, inside the repo, any folder) · how much to verify (health check, sample video, full demo, nothing). Anything can be removed later with `--remove`.
+
+### How it was tested (all on real installs)
+
+| Test | Result |
+|---|---|
+| Fresh clone with nothing installed, full interactive wizard with scripted answers (packages + bundled ffmpeg + private Chrome + sample video) | Passed. The render log showed it used the private Chrome; the video landed in the chosen folder |
+| Fresh clone, "use my own ffmpeg" + Kokoro in a separate voice folder + health check | Passed. The 83 MB ffmpeg download was skipped (`node_modules` 115 MB instead of 194 MB); a sample video rendered through the custom ffmpeg |
+| Same answers run twice | The second run took 11 s and downloaded nothing |
+| Bad typing; "change my answers"; "save and stop"; cancel | Re-asks; loops; writes the file and changes nothing; changes nothing |
+| Closed input (no terminal) | Fails fast with a clear message instead of hanging |
+| Invalid answers file | Rejected with a clear list before anything runs |
+| `--plan`, `--remove --dry-run`, `--status` | Change nothing |
+| Each ffmpeg choice when it cannot work (no system ffmpeg, bad custom path, bundled missing) | Each gives a message that says what to do |
+| The three launchers, in a path with spaces; missing Node | Pass; clear message |
+| Your real repo, no saved choices | Unchanged: the same 803 frames, all four voice engines READY |
+
+### Found and fixed during testing
+
+1. An operator-precedence bug in the Python path check (found by re-reading the code).
+2. Chrome for Testing is about 210 MB to download, not the 170 MB I first estimated: corrected everywhere.
+3. `voices:check` called an optional engine that was not chosen "UNAVAILABLE", which sounds like a fault: it now says "NOT INSTALLED, optional".
+4. On Windows a launcher script is only found as `.\setup.cmd`: the docs now say so.
+
+### Tokens for this stage
+
+Measured from the session transcript since the previous addendum: 42 API calls and about 85,000 output tokens. The cache-write figure (about 837,000) is high only because the session was interrupted and restarted, which made the long conversation get cached again; it is not new content. Session totals now: 233 API calls, about 551,000 output tokens, 274 tool calls.
+
+### Limits
+
+Tested on Windows 11 with npm. The pnpm and yarn paths, macOS and Linux are coded but not tested. The wizard never installs Node, Python, Chrome or drivers for you: it tells you how, and you decide.

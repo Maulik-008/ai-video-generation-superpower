@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "voices:setup": "tsx scripts/voices-setup.ts",
     "voices:check": "tsx scripts/voices-check.ts",
-    "demo": "tsx scripts/demo.ts"
+    "demo": "tsx scripts/demo.ts",
+    "setup": "node ../setup.mjs"
   },
   "dependencies": {
     "esbuild": "0.28.2",

@@ -17,6 +17,10 @@ Use `studio` unless the user explicitly asks for Flow, Grok, Gemini, Veo, TalkSt
 
 Files you will use: [references/brainstorm.md](references/brainstorm.md) (questions and brainstorm method), [formats/story.md](formats/story.md) (what the engine can draw and how to write `story.json`), [engines/studio.md](engines/studio.md) (commands). Read the first two before your first question.
 
+## 0. Is it set up?
+
+If `studio/node_modules` does not exist, or a build later fails because Chrome, ffmpeg or a voice engine is missing, the developer has not run the first-time setup. **Do not install anything yourself.** Tell them in one line and run the `setup-video-studio` skill: it asks what they want installed (with sizes) and only then does it. After setup, carry on from step 1.
+
 ## 1. Understand
 
 Read `$ARGUMENTS` and the conversation. Fill the slots in [brainstorm.md §1](references/brainstorm.md) (premise, length, tone, world, characters, language, audience, fixed elements). If the user gave a full script, keep their words verbatim and skip the brainstorm. If they said "surprise me" or "just make it", skip all questions.
