@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { StorySchema, type Story } from '../../src/types.ts';
+import { StorySchema, stripTags, TAGS, type Story } from '../../src/types.ts';
 
 export type Validation = { story?: Story; errors: string[]; warnings: string[] };
 
@@ -39,6 +39,12 @@ export function validateStory(storyPath: string): Validation {
       if (!chars.has(line.speaker)) errors.push(`${at}.lines[${j}]: unknown speaker "${line.speaker}"`);
       else if (!cast.has(line.speaker)) errors.push(`${at}.lines[${j}]: speaker "${line.speaker}" is not in this shot's cast`);
       words += line.text.split(/\s+/).length;
+      for (const m of line.text.matchAll(/\[([a-z ]{2,20})\]/gi)) {
+        const tag = m[1].toLowerCase();
+        if (!(TAGS as readonly string[]).includes(tag)) warnings.push(`${at}.lines[${j}]: unknown tag "[${m[1]}]" (known: ${TAGS.map((t) => `[${t}]`).join(' ')}); it is skipped`);
+        else if (!/^(auto|turbo)$/.test(story.characters.find((c) => c.id === line.speaker)?.voice.engine ?? '')) warnings.push(`${at}.lines[${j}]: "[${m[1]}]" is only performed by the turbo engine (engine "auto" uses it when installed); other engines skip it`);
+      }
+      if (!stripTags(line.text)) errors.push(`${at}.lines[${j}]: the line has only tags and no words to say`);
       if (line.text.split(/\s+/).length > 28) warnings.push(`${at}.lines[${j}]: ${line.text.split(/\s+/).length} words is long for one caption beat; consider splitting it`);
     });
     if (i === 0 && !shot.set) warnings.push(`${at}: no "set" on the first shot, using "studio"`);

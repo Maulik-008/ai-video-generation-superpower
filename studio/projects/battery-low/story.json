@@ -1,0 +1,53 @@
+{
+  "title": "Battery Low",
+  "slug": "battery-low",
+  "aspect": "vertical",
+  "resolution": "720p",
+  "fps": 60,
+  "look": { "captions": { "style": "bold", "position": "top" }, "handheld": true, "sfx": true, "ambience": true, "laptop": false },
+  "characters": [
+    {
+      "id": "maya", "name": "Maya", "kind": "human", "pose": "stand",
+      "look": { "hairStyle": "bob", "hair": "#2b1d17", "outfit": "#2f7d6d", "skin": "#e0a982" },
+      "voice": { "engine": "auto", "delivery": "warm", "edge": "en-US-AvaMultilingualNeural", "kokoro": "af_heart", "gender": "female" },
+      "captionColor": "#9ad1ff"
+    },
+    {
+      "id": "zip", "name": "Zip", "kind": "cube", "scale": 0.85,
+      "look": { "body": "#ff7a45", "accent": "#ffd08a" },
+      "voice": { "engine": "auto", "delivery": "natural", "edge": "en-US-AndrewMultilingualNeural", "kokoro": "am_puck", "gender": "male", "expressiveness": 0.7, "rate": "+6%" },
+      "captionColor": "#ffb066"
+    },
+    {
+      "id": "momo", "name": "Momo", "kind": "blob", "scale": 0.8,
+      "look": { "body": "#b28cf0", "accent": "#f7d6ff" },
+      "voice": { "engine": "auto", "delivery": "natural", "edge": "en-GB-MaisieNeural", "kokoro": "bf_lily", "gender": "female", "expressiveness": 0.6 },
+      "captionColor": "#ffd1f0"
+    }
+  ],
+  "shots": [
+    { "id": "s01", "set": "cozy-room", "cast": ["maya", "zip"], "camera": { "type": "medium", "focus": "zip", "move": "punch-in" }, "lead": 0.15,
+      "reactions": { "maya": "tired" },
+      "lines": [{ "speaker": "zip", "text": "Maya. Emergency. I am at two percent.", "emotion": "worried", "action": "jump" }] },
+    { "id": "s02", "cast": ["maya", "zip"], "camera": { "type": "close", "focus": "maya", "move": "push-in" },
+      "lines": [{ "speaker": "maya", "text": "Then go and charge. The dock is right there.", "emotion": "tired", "action": "point" }] },
+    { "id": "s03", "cast": ["maya", "zip"], "camera": { "type": "close", "focus": "zip", "move": "punch-in" },
+      "lines": [{ "speaker": "zip", "text": "The dock is behind the cat.", "emotion": "worried", "action": "shake" }] },
+    { "id": "s04", "cast": ["maya", "zip", "momo"], "transition": "zoom", "camera": { "type": "medium", "focus": "momo", "move": "push-in" },
+      "reactions": { "momo": "smug" },
+      "lines": [{ "speaker": "momo", "text": "I live here now. It is warm.", "emotion": "smug" }] },
+    { "id": "s05", "cast": ["maya", "zip", "momo"], "camera": { "type": "over-shoulder", "focus": "maya", "move": "static" },
+      "lines": [{ "speaker": "maya", "text": "Momo. Please. Move.", "emotion": "angry", "action": "point" }] },
+    { "id": "s06", "cast": ["maya", "zip", "momo"], "camera": { "type": "close", "focus": "momo", "move": "punch-in" },
+      "lines": [{ "speaker": "momo", "text": "Make me, human.", "emotion": "smug", "action": "lean-in", "sfx": "thud" }] },
+    { "id": "s07", "set": "sunny-park", "cast": ["maya", "zip"], "transition": "whip", "camera": { "type": "wide", "move": "pull-out" },
+      "duration": 1.7, "overlay": "Ten minutes later" },
+    { "id": "s08", "cast": ["maya", "zip"], "camera": { "type": "two-shot", "move": "drift-right" },
+      "reactions": { "maya": "confused" },
+      "lines": [{ "speaker": "zip", "text": "I have relocated. The sun is my charger now.", "emotion": "excited", "action": "jump" }] },
+    { "id": "s09", "cast": ["maya", "zip"], "camera": { "type": "close", "focus": "maya", "move": "push-in" },
+      "lines": [{ "speaker": "maya", "text": "Zip, that is not how solar power works.", "emotion": "confused", "action": "shake" }] },
+    { "id": "s10", "cast": ["maya", "zip"], "camera": { "type": "close", "focus": "zip", "move": "punch-in" }, "hold": 0.4,
+      "lines": [{ "speaker": "zip", "text": "One percent. And thriving.", "emotion": "happy", "action": "nod", "sfx": "sparkle" }] }
+  ]
+}

@@ -17,10 +17,9 @@ os.environ.setdefault("PYTHONUTF8", "1")
 
 
 def norm(s: str) -> str:
-    s = unicodedata.normalize("NFC", s).lower()
-    s = re.sub(r"[^\w]", "", s, flags=re.UNICODE)  # drop punctuation and spaces
-    s = s.replace("़", "")  # nukta: Whisper and our text disagree on it often
-    return s
+    from chatterbox_worker import _norm  # same rules as the generation check: numbers spelled out, tags dropped
+
+    return _norm(re.sub(r"\[[a-zA-Z ]{2,20}\]", " ", s))
 
 
 def main() -> int:
@@ -41,7 +40,7 @@ def main() -> int:
                 audio, _ = librosa.load(it["file"], sr=16000, mono=True)
                 dur = len(audio) / 16000
                 text = asr({"raw": audio, "sampling_rate": 16000}, chunk_length_s=30, generate_kwargs={"language": names.get(it.get("lang", "en"), "english"), "task": "transcribe"})["text"].strip()
-                score = difflib.SequenceMatcher(None, norm(it["text"]), norm(text)).ratio()
+                score = difflib.SequenceMatcher(None, norm(it["text"]), norm(text), autojunk=False).ratio()  # autojunk would skew long texts
                 out["items"].append({"id": it["id"], "seconds": round(dur, 2), "heard": text, "score": round(score, 3)})
             except Exception as e:  # noqa: BLE001
                 out["items"].append({"id": it["id"], "error": f"{type(e).__name__}: {e}"})

@@ -1,6 +1,6 @@
 # Format: story
 
-Animated low-poly 3D story videos with voices, captions, camera work and music, rendered by code in `studio/` (no accounts, no paid APIs). This file is the contract for `studio/projects/<slug>/story.json`. The director writes it, `npm run validate` checks it, and the `video-producer` agent builds it.
+Animated low-poly 3D story videos with voices, word-by-word captions, camera work, transitions and sound design, rendered by code in `studio/` at 60 fps (no accounts, no paid APIs). This file is the contract for `studio/projects/<slug>/story.json`. The director writes it, `npm run validate` checks it, and the `video-producer` agent builds it.
 
 The schema's source of truth is [studio/src/types.ts](../../../../studio/src/types.ts). If this file and that one disagree, the code wins.
 
@@ -27,7 +27,7 @@ Everything else in a user's story has to be mapped onto these three: a talking t
 | `sunny-park` | trees, hills, bench, clouds. Kids' stories, outdoors, fables, upbeat |
 | `studio` | neutral dark stage with drifting shapes. Explainers, abstract ideas, anything |
 
-Every set has a laptop in front. It slides aside automatically so it does not hide a character standing in the middle.
+Every set has a laptop in front. It slides aside automatically so it does not hide a character standing in the middle. When the story has nothing to do with a computer, hide it with `"look": { "laptop": false }` (insert shots still show it).
 
 **Emotions** (`lines[].emotion`, `shots[].reactions`): `neutral` `happy` `sad` `angry` `surprised` `worried` `smug` `tired` `excited` `confused`. A character keeps their last emotion into later shots until they speak again or a `reactions` entry overrides it before their first line of a shot.
 
@@ -45,7 +45,19 @@ Every set has a laptop in front. It slides aside automatically so it does not hi
 | `low-angle` / `high-angle` | looks up at / down on `focus` | power, smallness |
 | `insert` | the laptop screen (`focus` can be `"laptop"`; set `screen` lines) | showing code, a message, a search, a result |
 
-`move`: `static` `push-in` `pull-out` `drift-left` `drift-right` `orbit` `rise`. Slow, over the length of the shot. Default to `push-in` on emotional close-ups, `pull-out` on reveals and endings, `static` for rapid dialogue.
+`move`: `static` `push-in` `pull-out` `drift-left` `drift-right` `orbit` `rise` `punch-in`. All but `punch-in` are slow, over the length of the shot. Default to `push-in` on emotional close-ups, `pull-out` on reveals and endings, and `static` for rapid dialogue. **`punch-in`** is a quick, springy zoom right after the cut, then a slow creep: the emphasis beat of short-form video. Use it on a reaction, a reveal or a punchline, at most every third shot.
+
+**Transitions** (`shots[].transition`, how this shot comes in from the previous one; default `cut`):
+
+| `transition` | Looks like | Use for |
+|---|---|---|
+| `cut` | instant | every shot inside a scene (film language: most shots are cuts) |
+| `whip` | fast pan with motion blur (about 0.3 s, automatic whoosh) | a jump to another place, `set` changes, "meanwhile" |
+| `zoom` | zoom-blur through into the next shot (about 0.36 s, automatic whoosh) | a reveal, entering someone's head, "and then" |
+| `fade` | crossfade (about 0.45 s) | an emotional beat, a soft ending |
+| `dip` | through black (about 0.6 s) | time passing, "later", the start of an epilogue |
+
+At most 3 or 4 non-cut transitions per video. They overlap the start of the shot, so they do not change its length.
 
 ## story.json
 
@@ -88,8 +100,13 @@ A complete working example lives in `studio/projects/example-small-change/story.
 | `slug` | required | Lowercase letters, digits, dashes. The video is saved as `<slug>.mp4` |
 | `aspect` | `vertical` | `vertical` 9:16, `square`, `landscape` 16:9 |
 | `resolution` | `720p` | `1080p` renders in about twice the time |
-| `look.captions.position` | `top` | `top` (30% down), `middle`, `bottom`. `size` is a fraction of the frame height |
+| `fps` | `60` | Smooth motion. `30` renders in half the time and looks choppier |
+| `look.captions.style` | `bold` | `bold`: big heavy captions in short groups, the word being spoken lit in the speaker's colour (timed by Whisper when the Chatterbox environment is installed, otherwise estimated from the audio). `classic`: the older phrase captions. `none`: no captions |
+| `look.captions.position` | `top` | `top` (29% down), `middle`, `bottom`. `size` is a fraction of the frame height (default 0.05 bold, 0.034 classic) |
 | `look.handheld` | `true` | Faint camera drift. Turn off for a very still look |
+| `look.sfx` | `true` | Automatic sound effects: a whoosh on `whip`/`zoom`, a pop on an `overlay` title, a boing on `jump`, typing on an `insert` with `screen` text. `false` keeps only the ones you set |
+| `look.ambience` | `true` | A very quiet room tone per set (city night, room, office, park wind, space drone), so pauses never fall into dead silence |
+| `look.laptop` | `true` | `false` hides the laptop prop except in insert shots |
 | `music` | none | A file you or the user provide (mp3/wav). Quietened under speech automatically. The engine cannot compose music |
 
 ### Characters
@@ -100,7 +117,7 @@ A complete working example lives in `studio/projects/example-small-change/story.
 
 | Field | Default | Meaning |
 |---|---|---|
-| `engine` | `edge` | `auto` = the best engine installed (chatterbox, then kokoro, then edge, then offline), or force `edge`, `kokoro`, `chatterbox`, `sapi`. Every choice falls back automatically if it is missing or fails |
+| `engine` | `edge` | `auto` = the best engine installed (turbo for English, then chatterbox, kokoro, edge, offline), or force `edge`, `kokoro`, `chatterbox`, `turbo`, `sapi`. Every choice falls back automatically if it is missing or fails |
 | `delivery` | `natural` | `natural` = as before. **`warm`** and **`calm`** = slower, real pauses between longer sentences, the `emotion` of each line shapes the delivery, and a warm mastering pass. Use `calm` for heartfelt, apology, comfort and bedtime stories |
 | `edge` | `en-US-GuyNeural` | A Microsoft Edge neural voice name (list below). It also sets the language |
 | `kokoro` | chosen from language + gender | A Kokoro voice id such as `af_heart` (US female), `am_michael` (US male), `bf_emma`, `bm_george`, `hf_alpha` / `hm_omega` (Hindi). Two characters of the same gender automatically get different ids |
@@ -114,6 +131,7 @@ A complete working example lives in `studio/projects/example-small-change/story.
 
 | Language | Voices (`<locale>-<Name>`) |
 |---|---|
+| English, most natural | `en-US-` AndrewMultilingualNeural (M) · BrianMultilingualNeural (M) · AvaMultilingualNeural (F) · EmmaMultilingualNeural (F) · `en-AU-` WilliamMultilingualNeural (M). Prefer these: they sound conversational rather than read aloud |
 | English US | `en-US-` GuyNeural (M) · AndrewNeural (M) · BrianNeural (M) · ChristopherNeural (M) · EricNeural (M) · RogerNeural (M) · SteffanNeural (M) · AriaNeural (F) · JennyNeural (F) · AvaNeural (F) · EmmaNeural (F) · MichelleNeural (F) · AnaNeural (F, child-like) |
 | English UK / AU / IN | `en-GB-` RyanNeural (M) · ThomasNeural (M) · SoniaNeural (F) · LibbyNeural (F) · MaisieNeural (F, young) · `en-AU-` WilliamMultilingualNeural (M) · NatashaNeural (F) · `en-IN-` PrabhatNeural (M) · NeerjaNeural (F) |
 | Hindi | `hi-IN-` MadhurNeural (M) · SwaraNeural (F) |
@@ -124,6 +142,8 @@ A complete working example lives in `studio/projects/example-small-change/story.
 
 Write the dialogue text in the same language as the voice. Captions use the same text. If the voice and the text language differ the speech will be garbled.
 
+**Non-verbal sounds.** A line may contain `[laugh]`, `[chuckle]`, `[sigh]`, `[gasp]`, `[cough]`, `[clear throat]`, `[sniff]`, `[groan]` or `[shush]`, for example `"[sigh] Fine. Ship it."`. Only the `turbo` engine (Chatterbox Turbo, English, an optional download) performs them; every other engine and the captions skip them silently, so a story with tags still works everywhere. Use at most one per character per video, where a person really would.
+
 ### Shots
 
 | Field | Default | Notes |
@@ -132,8 +152,10 @@ Write the dialogue text in the same language as the voice. Captions use the same
 | `set` | previous shot's set | Required on the first shot or it falls back to `studio` |
 | `cast` | everyone | Subset of character ids standing in this shot |
 | `camera` | `{type:"medium", move:"static"}` | see Camera above |
-| `lines[]` | `[]` | `speaker`, `text` (≤ 240 chars), `emotion` (default `neutral`), `action`, `pause` (seconds of silence before the line, default 0.15) |
+| `lines[]` | `[]` | `speaker`, `text` (≤ 240 chars), `emotion` (default `neutral`), `action`, `sfx` (an effect when the line starts), `pause` (seconds of silence before the line, default 0.15) |
 | `duration` | none | Seconds. **Required for shots without lines** (establishing shots, reaction beats, inserts). Ignored when the lines are longer |
+| `transition` | `cut` | `cut` `whip` `zoom` `fade` `dip`, see Transitions above |
+| `sfx` | none | An effect at the start of the shot: `whoosh` `swoosh-up` `pop` `ding` `boing` `thud` `sparkle` `type`. All are made by ffmpeg, nothing to download |
 | `lead` / `hold` | 0.25 / 0.35 | Seconds before the first line / after the last line |
 | `reactions` | `{}` | `{ "dev": "worried" }`: a face for characters who have not spoken yet in this shot |
 | `overlay` | none | Big title / end-card text over the shot (≤ 80 chars) |
@@ -142,13 +164,15 @@ Write the dialogue text in the same language as the voice. Captions use the same
 ## Writing rules (this is what makes it good, not just valid)
 
 - **Length**: 20 to 45 seconds is the sweet spot for vertical video. Speech runs at about 2.2 words per second including pauses. 60 words ≈ 27 s. Never go above 90 s.
-- **Hook in the first two seconds**: the first spoken line is a question, a complaint, a shock or a weird claim. No greetings, no "Hello, today I'll tell you…".
+- **Hook in the first 1.5 seconds**: the first spoken line is a question, a complaint, a shock or a weird claim. No greetings, no "Hello, today I'll tell you…". Open on the line, not on a title card, unless the title is the joke. Give the opening shot `lead: 0.15`.
+- **Something changes every 2 to 4 seconds**: a cut, a `punch-in`, an `action`, a reaction, a sound effect. Viewers swipe away from a picture that has stopped changing.
 - **Structure**: hook → escalation (each exchange raises the stakes or adds a twist) → punchline or turn in the last 3 seconds. End on the best line, on a `close` shot, and stop. No moral recap.
 - **Short lines**: 3 to 12 words per line. One idea per line. If a line needs two breaths, split it into two lines (same speaker is fine).
 - **Shot rhythm**: a new shot every 2 to 5 seconds. Alternate camera types (two-shot → close → close → over-shoulder), never the same framing three times in a row. Put `wide` only at the start or end. Use a `close` for the emotional beat and the punchline.
 - **Acting**: give every line an `emotion`, and add an `action` on roughly one line in three (`shrug` for "whatever", `jump` for joy, `slump` for defeat, `point` for accusation, `shake` for disbelief). Use `reactions` so the listener's face shows what they feel before they answer.
 - **Characters talk differently**: vocabulary, sentence length and voice. Two characters who sound the same make a flat video.
 - **Insert shots** are for plot-relevant text only, 2 to 3 seconds: an error message, a chat, a search query, a score. Use `screen`.
+- **Sound effects** support a beat; they never decorate. One chosen effect per 10 seconds is plenty on top of the automatic ones: a `thud` on a flat refusal, a `ding` on an idea, a `sparkle` on the happy ending.
 - **Overlay title** on a 2-second wide opening shot is optional. Leave it out when the hook line should open the video.
 - **Facts and claims**: if the story states a real fact (a statistic, a health claim, a historical date), make sure it is true, or keep it clearly fictional. Do not write defamatory, hateful, or misleading content about real people or companies.
 - **Language**: dialogue in the voice's language. Plain words. No emoji (the font cannot show them).

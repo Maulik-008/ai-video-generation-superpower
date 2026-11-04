@@ -11,7 +11,7 @@
 //   node setup.mjs --apply --answers a.json   do it, without questions (the Claude skill uses this)
 //   node setup.mjs --apply --yes   the smallest safe setup: npm packages only, no big downloads
 //   node setup.mjs --verify [--level check|sample|demo]
-//   node setup.mjs --remove kokoro|chatterbox|voice-models|browser|deps|config|all-voices [--force]
+//   node setup.mjs --remove kokoro|chatterbox|turbo|voice-models|browser|deps|config|all-voices [--force]
 //   add --dry-run to any action to only print it.   node setup.mjs --help
 import fs from 'node:fs';
 import os from 'node:os';
@@ -38,6 +38,7 @@ const SIZE = {
   chrome: { dl: 210, disk: 450 },
   kokoro: { dl: 350, disk: 510 },
   chatterbox: { dl: 5800, disk: 8400 },
+  turbo: { dl: 4000, disk: 4100 }, // optional Chatterbox Turbo weights (shares the Chatterbox environment)
   whisper: { dl: 1000, disk: 1000 },
 };
 const fmtMB = (mb) => (mb >= 1000 ? `${(mb / 1000).toFixed(1)} GB` : `${Math.round(mb)} MB`);
@@ -177,6 +178,11 @@ function detect() {
   try {
     chatterboxModel = fs.readdirSync(snaps).some((d) => exists(path.join(snaps, d, 's3gen.pt')));
   } catch {}
+  const turboSnaps = path.join(voiceHome, '.models', 'hf', 'hub', 'models--ResembleAI--chatterbox-turbo', 'snapshots');
+  let turboModel = false;
+  try {
+    turboModel = fs.readdirSync(turboSnaps).some((d) => exists(path.join(turboSnaps, d, 't3_turbo_v1.safetensors')));
+  } catch {}
   return {
     os: { platform: process.platform, arch: process.arch, release: os.release() },
     node: { version: process.versions.node, ok: nodeMajor >= 20 },
@@ -191,6 +197,7 @@ function detect() {
       configExists: !!cfg,
       kokoroInstalled: exists(venv('kokoro')) && kokoroFiles,
       chatterboxInstalled: exists(venv('chatterbox')) && chatterboxModel,
+      turboInstalled: exists(venv('chatterbox')) && turboModel,
       privateBrowser: exists(cfg?.browser?.path) && cfg?.browser?.mode === 'private',
       voiceHome,
     },
@@ -274,7 +281,7 @@ function showDetection(d) {
   console.log(`  Chrome / Edge   ${d.browsers.length ? green(d.browsers.map((b) => b.name).join(', ')) : yellow('not found')}`);
   console.log(`  Python          ${d.pythons.length ? d.pythons.map((p) => `${p.version}${p.supported ? '' : dim(' (unsupported)')}`).join(', ') : yellow('not found')}`);
   console.log(`  NVIDIA GPU      ${d.gpu.found ? green(`${d.gpu.name}${d.gpu.vramMB ? `, ${Math.round(d.gpu.vramMB / 1024)} GB` : ''}`) : yellow('none found')}`);
-  console.log(`  Already set up  deps ${ok(d.state.depsInstalled)}   Kokoro ${ok(d.state.kokoroInstalled)}   Chatterbox ${ok(d.state.chatterboxInstalled)}   private Chrome ${ok(d.state.privateBrowser)}`);
+  console.log(`  Already set up  deps ${ok(d.state.depsInstalled)}   Kokoro ${ok(d.state.kokoroInstalled)}   Chatterbox ${ok(d.state.chatterboxInstalled)}   Turbo ${ok(d.state.turboInstalled)}   private Chrome ${ok(d.state.privateBrowser)}`);
 }
 
 async function askAll(d, prior = {}) {
@@ -327,12 +334,14 @@ async function askAll(d, prior = {}) {
   const picks = await multi('   Which LOCAL voice engines do you want installed? (better quality, work offline)', [
     { value: 'kokoro', label: `Kokoro: natural, calm voices. About ${fmtMB(SIZE.kokoro.dl)} download, ${fmtMB(SIZE.kokoro.disk)} on disk`, hint: 'Needs Python 3.10-3.13. No GPU needed. English, Hindi and 6 other languages.' },
     { value: 'chatterbox', label: `Chatterbox: the most expressive. About ${fmtMB(SIZE.chatterbox.dl)} download, ${fmtMB(SIZE.chatterbox.disk)} on disk`, hint: needsGpu ? yellow('No NVIDIA GPU found on this machine: it would not run. Not recommended here.') : 'Needs an NVIDIA GPU and Python (3.11 recommended). 23 languages including Hindi.' },
+    { value: 'turbo', label: `Chatterbox Turbo (optional add-on): English only, can [laugh], [sigh] and [chuckle]. About ${fmtMB(SIZE.turbo.dl)} more`, hint: needsGpu ? yellow('Needs an NVIDIA GPU, like Chatterbox.') : 'Shares the Chatterbox environment (Chatterbox is added if you pick this). Off unless you choose it.' },
   ]);
-  a.voices = { kokoro: picks.includes('kokoro'), chatterbox: picks.includes('chatterbox'), speechCheck: true, dir: '', python: '' };
+  a.voices = { kokoro: picks.includes('kokoro'), chatterbox: picks.includes('chatterbox') || (picks.includes('turbo') && !d.state.chatterboxInstalled), turbo: picks.includes('turbo'), speechCheck: true, dir: '', python: '' };
+  if (a.voices.turbo && !picks.includes('chatterbox') && !d.state.chatterboxInstalled) console.log(`   ${dim('Turbo runs inside the Chatterbox environment, so Chatterbox is added to the plan.')}`);
   if (a.voices.chatterbox) {
     a.voices.speechCheck = await confirm(`   Add the speech check for Chatterbox (a Whisper model, about ${fmtMB(SIZE.whisper.dl)})? It listens to each line and retries bad takes. Strongly advised.`, true);
   }
-  if (a.voices.kokoro || a.voices.chatterbox) {
+  if (a.voices.kokoro || a.voices.chatterbox || a.voices.turbo) {
     const dirChoice = await select('   Where should the voice models and Python environments be stored?', [
       { value: 'repo', label: `Inside the repo, in studio/ (git-ignored)`, recommended: true, hint: `Free space on this drive: ${d.disk.repoFreeGB ? d.disk.repoFreeGB.toFixed(0) + ' GB' : 'unknown'}` },
       { value: 'custom', label: 'In a folder I choose (another drive, a data disk)' },
@@ -349,7 +358,7 @@ async function askAll(d, prior = {}) {
     const py = await select('   Which Python should the voice engines use?', pyOpts, {
       help: IS_WIN ? 'Install Python 3.11 from python.org or run: winget install Python.Python.3.11' : process.platform === 'darwin' ? 'Install Python 3.11 with: brew install python@3.11' : 'Install Python 3.11 with your package manager, for example: sudo apt install python3.11 python3.11-venv',
     });
-    if (py === '__skip') a.voices.kokoro = a.voices.chatterbox = false;
+    if (py === '__skip') a.voices.kokoro = a.voices.chatterbox = a.voices.turbo = false;
     else a.voices.python = py === '__custom' ? await text('   Full path to the Python program') : py;
   }
 
@@ -386,7 +395,7 @@ function normalize(raw) {
     core: { install: 'skip', packageManager: 'npm', ...(raw.core ?? {}) },
     ffmpeg: { mode: 'skip', path: '', ...(raw.ffmpeg ?? {}) },
     browser: { mode: 'skip', path: '', ...(raw.browser ?? {}) },
-    voices: { kokoro: false, chatterbox: false, speechCheck: true, dir: '', python: '', ...(raw.voices ?? {}) },
+    voices: { kokoro: false, chatterbox: false, turbo: false, speechCheck: true, dir: '', python: '', ...(raw.voices ?? {}) },
     outputDir: raw.outputDir ?? '',
     verify: raw.verify ?? 'none',
   };
@@ -402,7 +411,7 @@ function normalize(raw) {
 
 function makePlan(a, d) {
   const steps = [];
-  const voicesWanted = a.voices.kokoro || a.voices.chatterbox;
+  const voicesWanted = a.voices.kokoro || a.voices.chatterbox || a.voices.turbo;
   const sys = a.ffmpeg.mode === 'system' || a.ffmpeg.mode === 'custom';
   steps.push({ id: 'config', title: 'Save your choices to studio/.studio-setup.json', dl: 0, disk: 0 });
   if (a.core.install === 'yes' || a.core.install === 'reinstall') {
@@ -416,6 +425,7 @@ function makePlan(a, d) {
     if (a.voices.chatterbox && !d.state.chatterboxInstalled) {
       steps.push({ id: 'chatterbox', title: `Install Chatterbox (PyTorch with CUDA + model${a.voices.speechCheck ? ' + Whisper speech check' : ''}) in ${where}`, dl: SIZE.chatterbox.dl + (a.voices.speechCheck ? SIZE.whisper.dl : 0), disk: SIZE.chatterbox.disk + (a.voices.speechCheck ? SIZE.whisper.disk : 0) });
     }
+    if (a.voices.turbo && !d.state.turboInstalled) steps.push({ id: 'turbo', title: `Download the Chatterbox Turbo model (English, performs [laugh] / [sigh] tags) into ${where}`, dl: SIZE.turbo.dl, disk: SIZE.turbo.disk });
     for (const e of ['kokoro', 'chatterbox']) if (a.voices[e] && d.state[`${e}Installed`]) steps.push({ id: `have-${e}`, title: `${e === 'kokoro' ? 'Kokoro' : 'Chatterbox'} is already installed: keep it`, dl: 0, disk: 0, info: true });
   }
   if (a.verify !== 'none') steps.push({ id: 'verify', title: { check: 'Run the voice health check', sample: 'Build the small sample video', demo: 'Build the full voice demo (8 videos)' }[a.verify], dl: 0, disk: 0 });
@@ -439,7 +449,7 @@ function printPlan(steps, a, d) {
   if (a.core.install === 'skip' && !d.state.depsInstalled) notes.push('The packages are not installed: run "npm install" in studio/ before anything else.');
   if (a.ffmpeg.mode === 'skip' && !d.ffmpeg.onPath) notes.push('No ffmpeg was chosen or found: install one before rendering.');
   if (a.browser.mode === 'skip' && !d.browsers.length) notes.push('No browser was chosen or found: install Chrome or Edge before rendering.');
-  if ((a.voices.kokoro || a.voices.chatterbox) && a.core.install === 'skip' && !d.state.depsInstalled) notes.push('The voice setup needs the studio packages first.');
+  if ((a.voices.kokoro || a.voices.chatterbox || a.voices.turbo) && a.core.install === 'skip' && !d.state.depsInstalled) notes.push('The voice setup needs the studio packages first.');
   for (const n of notes) console.log(yellow(`  Note: ${n}`));
   console.log(dim(`  Nothing outside the repo is touched except: ${[a.voices.dir && `the voice folder ${a.voices.dir}`, a.outputDir !== '' && `the video folder ${a.outputDir}`].filter(Boolean).join(', ') || 'the output folder when you render videos'}.`));
   return { dl, disk };
@@ -453,7 +463,7 @@ function writeConfig(a) {
     packageManager: a.core.packageManager,
     ffmpeg: a.ffmpeg.mode === 'skip' ? prev.ffmpeg : { mode: a.ffmpeg.mode, ...(a.ffmpeg.path ? { path: a.ffmpeg.path } : {}) },
     browser: a.browser.mode === 'skip' ? prev.browser : a.browser.mode === 'system' ? { mode: 'system' } : { mode: a.browser.mode, ...(a.browser.path ? { path: a.browser.path } : prev.browser?.path ? { path: prev.browser.path } : {}) },
-    voices: { ...prev.voices, kokoro: a.voices.kokoro || prev.voices?.kokoro || false, chatterbox: a.voices.chatterbox || prev.voices?.chatterbox || false, speechCheck: a.voices.speechCheck, ...(a.voices.dir ? { dir: a.voices.dir } : {}), ...(a.voices.python ? { python: a.voices.python } : {}) },
+    voices: { ...prev.voices, kokoro: a.voices.kokoro || prev.voices?.kokoro || false, chatterbox: a.voices.chatterbox || prev.voices?.chatterbox || false, turbo: a.voices.turbo || prev.voices?.turbo || false, speechCheck: a.voices.speechCheck, ...(a.voices.dir ? { dir: a.voices.dir } : {}), ...(a.voices.python ? { python: a.voices.python } : {}) },
     ...(a.outputDir ? { outputDir: a.outputDir } : prev.outputDir ? { outputDir: prev.outputDir } : {}),
     createdAt: prev.createdAt ?? new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -500,6 +510,12 @@ const STEP_RUN = {
     if (!exists(tsx())) throw new Error('needs the studio packages first');
     const r = await studioRun('voices-setup.ts', ['--only', 'chatterbox']);
     if (r.code !== 0) throw new Error('the Chatterbox setup reported problems (see above)');
+    return 'installed';
+  },
+  async turbo() {
+    if (!exists(tsx())) throw new Error('needs the studio packages first');
+    const r = await studioRun('voices-setup.ts', ['--only', 'turbo']);
+    if (r.code !== 0) throw new Error('the Turbo setup reported problems (see above)');
     return 'installed';
   },
   async verify(a) {
@@ -605,6 +621,7 @@ async function remove(target) {
   const map = {
     kokoro: [path.join(home, '.venv-kokoro'), path.join(home, '.models', 'kokoro')],
     chatterbox: [path.join(home, '.venv-chatterbox'), path.join(home, '.models', 'hf')],
+    turbo: [path.join(home, '.models', 'hf', 'hub', 'models--ResembleAI--chatterbox-turbo')],
     'voice-models': [path.join(home, '.models')],
     'all-voices': [path.join(home, '.venv-kokoro'), path.join(home, '.venv-chatterbox'), path.join(home, '.models'), path.join(STUDIO, 'voice', '.status.json')],
     browser: [path.join(STUDIO, '.browsers')],
@@ -624,8 +641,9 @@ async function remove(target) {
   if (cfg && target !== 'config') {
     if (target === 'browser' && cfg.browser?.mode === 'private') delete cfg.browser;
     if (target === 'kokoro') cfg.voices = { ...cfg.voices, kokoro: false };
-    if (target === 'chatterbox') cfg.voices = { ...cfg.voices, chatterbox: false };
-    if (target === 'all-voices') cfg.voices = { ...cfg.voices, kokoro: false, chatterbox: false };
+    if (target === 'chatterbox') cfg.voices = { ...cfg.voices, chatterbox: false, turbo: false };
+    if (target === 'turbo') cfg.voices = { ...cfg.voices, turbo: false };
+    if (target === 'all-voices') cfg.voices = { ...cfg.voices, kokoro: false, chatterbox: false, turbo: false };
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2) + '\n');
   }
   console.log(green('Removed.'));
@@ -643,14 +661,14 @@ const HELP = `video-super-power setup. Nothing is downloaded or installed unless
   node setup.mjs --apply --answers FILE   run an answers file without questions
   node setup.mjs --apply --yes            smallest safe setup: npm packages only, no big downloads
   node setup.mjs --verify [--level check|sample|demo]
-  node setup.mjs --remove TARGET [--force]   TARGET: kokoro | chatterbox | voice-models | all-voices | browser | deps | config
+  node setup.mjs --remove TARGET [--force]   TARGET: kokoro | chatterbox | turbo | voice-models | all-voices | browser | deps | config
   --dry-run   print instead of doing         --no-color
 
 Answers file (JSON, every key optional; a missing key means "do nothing for that"):
   { "core": {"install": "yes|keep|reinstall|skip", "packageManager": "npm|pnpm|yarn"},
     "ffmpeg": {"mode": "bundled|system|custom|skip", "path": ""},
     "browser": {"mode": "system|private|custom|skip", "path": ""},
-    "voices": {"kokoro": false, "chatterbox": false, "speechCheck": true, "dir": "", "python": ""},
+    "voices": {"kokoro": false, "chatterbox": false, "turbo": false, "speechCheck": true, "dir": "", "python": ""},
     "outputDir": "", "verify": "none|check|sample|demo" }
 Full guide: docs/SETUP.md`;
 

@@ -4,6 +4,7 @@ import type { Cli } from './args.ts';
 import { outputRoot } from './config.ts';
 import type { Project } from './paths.ts';
 import { log, makeTimeline } from './pipeline.ts';
+import { printQa, runQa } from './qa.ts';
 import { defaultStillFrames, renderStills, renderVideo } from './render.ts';
 
 /** Voice-affecting flags make a different video of the same story, so they become part of the file name. */
@@ -21,6 +22,7 @@ export async function runBuild(project: Project, cli: Cli, opts: { videosSubdir?
   }
   const name = opts.outName ?? variantName(project.slug, cli);
   const out = await renderVideo(project, tl, { workers: cli.workers, keepFrames: cli.keepFrames, outName: name, log });
+  if (!cli.noQa) printQa(await runQa(project, tl, out, { listen: cli.listen, log }), log);
   const videos = path.join(outputRoot(), opts.videosSubdir ?? '');
   fs.mkdirSync(videos, { recursive: true });
   const copy = path.join(videos, `${name}.mp4`);

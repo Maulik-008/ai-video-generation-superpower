@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { Move, ShotType } from '../types';
 import type { Metrics } from './characters';
-import { lerp, smoothstep } from './util';
+import { easeOutBack, lerp, smoothstep } from './util';
 
 export type CamChar = { id: string; x: number; m: Metrics };
 export type CamCtx = {
@@ -35,8 +35,11 @@ export function frameShot(type: ShotType, focusId: string | undefined, ctx: CamC
   }
   if (type === 'two-shot' || (chars.length > 1 && type === 'medium' && !focusId)) {
     const fov = 36;
-    const d = distFor(span + 2.0, fov, aspect);
-    return { pos: V(cx, tallest * 0.5 + 2.3, d), target: V(cx, tallest * 0.5 + 1.9, 0), fov };
+    const vertical = aspect < 1;
+    const d = distFor(span + (vertical ? 1.3 : 2.0), fov, aspect);
+    return vertical
+      ? { pos: V(cx, tallest * 0.5 + 1.85, d), target: V(cx, tallest * 0.5 + 1.35, 0), fov }
+      : { pos: V(cx, tallest * 0.5 + 2.3, d), target: V(cx, tallest * 0.5 + 1.9, 0), fov };
   }
   if (type === 'insert') {
     const a = ctx.anchors.laptop;
@@ -78,8 +81,8 @@ export function frameShot(type: ShotType, focusId: string | undefined, ctx: CamC
   }
 }
 
-/** Slow camera moves over the length of a shot (p = 0..1) plus a whisper of hand-held drift. */
-export function applyMove(base: CamPose, move: Move, p: number, t: number, handheld: boolean): CamPose {
+/** Camera moves over the length of a shot (p = 0..1, `secs` since the cut) plus a whisper of hand-held drift. */
+export function applyMove(base: CamPose, move: Move, p: number, t: number, handheld: boolean, secs = 0): CamPose {
   const e = smoothstep(p);
   const pos = base.pos.clone();
   const target = base.target.clone();
@@ -108,6 +111,10 @@ export function applyMove(base: CamPose, move: Move, p: number, t: number, handh
       break;
     case 'rise':
       pos.y += lerp(-0.25, 0.25, e);
+      break;
+    case 'punch-in':
+      // a quick, springy zoom right after the cut (the emphasis beat of short-form video), then a slow creep
+      d.multiplyScalar(lerp(1.16, 0.9, easeOutBack(secs / 0.42, 1.2)) * lerp(1, 0.96, e));
       break;
     case 'static':
       break;

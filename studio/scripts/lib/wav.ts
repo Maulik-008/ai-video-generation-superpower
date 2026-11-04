@@ -84,6 +84,9 @@ export function trimSilence(pcm: Pcm, thresholdDb = -42, padStart = 0.04, padEnd
   return { sampleRate, samples: samples.slice(a, b) };
 }
 
+/** Per-frame smoothing coefficient that behaves the same at 30 and 60 fps (`at30` is the weight of the new value at 30 fps). */
+const coef = (at30: number, fps: number) => 1 - Math.pow(1 - at30, 30 / fps);
+
 /** Per-frame mouth openness in 0..1, smoothed with a fast attack and slower release. */
 export function mouthEnvelope(pcm: Pcm, fps: number, frames: number): number[] {
   const { sampleRate, samples } = pcm;
@@ -97,11 +100,92 @@ export function mouthEnvelope(pcm: Pcm, fps: number, frames: number): number[] {
   const active = raw.filter((v) => v > 0.01).sort((x, y) => x - y);
   const ref = active.length ? active[Math.floor(active.length * 0.92)] : 1;
   const out: number[] = [];
+  const up = coef(0.75, fps);
+  const down = coef(0.4, fps);
   let prev = 0;
   for (const v of raw) {
     const norm = Math.min(1, Math.pow(Math.min(1.4, v / ref), 0.8));
-    prev = norm > prev ? prev * 0.25 + norm * 0.75 : prev * 0.6 + norm * 0.4;
+    prev += (norm - prev) * (norm > prev ? up : down);
     out.push(Math.round(prev * 100) / 100);
   }
   return out;
+}
+
+/**
+ * Per-frame mouth width in 0..1 from the zero-crossing rate: bright, hissy sounds ("ee", "s", "t") read as a wide mouth,
+ * dark voiced sounds ("oo", "o", "m") as a round one. Crude, but it keeps the mouth from opening the same way on every syllable.
+ */
+export function mouthShape(pcm: Pcm, fps: number, frames: number): number[] {
+  const { sampleRate, samples } = pcm;
+  const win = sampleRate / fps;
+  const zcr: number[] = [];
+  const loud: number[] = [];
+  for (let f = 0; f < frames; f++) {
+    const a = Math.floor(f * win);
+    const b = Math.min(samples.length, Math.floor((f + 1) * win));
+    let z = 0;
+    for (let i = a + 1; i < b; i++) if ((samples[i - 1] >= 0) !== (samples[i] >= 0)) z++;
+    zcr.push(b > a ? z / (b - a) : 0);
+    loud.push(a < samples.length ? rms(samples, a, b) : 0);
+  }
+  const voiced = zcr.filter((_, i) => loud[i] > 0.01).sort((x, y) => x - y);
+  const lo = voiced.length ? voiced[Math.floor(voiced.length * 0.1)] : 0;
+  const hi = voiced.length ? voiced[Math.floor(voiced.length * 0.9)] : 1;
+  const k = coef(0.5, fps);
+  let prev = 0.5;
+  return zcr.map((z, i) => {
+    const target = loud[i] > 0.01 && hi > lo ? Math.min(1, Math.max(0, (z - lo) / (hi - lo))) : 0.5;
+    prev += (target - prev) * k;
+    return Math.round(prev * 100) / 100;
+  });
+}
+
+/** Seconds of the clip that are voiced (energy above the floor), as [start, end] runs. Used to place words when Whisper is not available. */
+export function voicedRuns(pcm: Pcm, minGap = 0.09): [number, number][] {
+  const { sampleRate, samples } = pcm;
+  const win = Math.round(sampleRate * 0.01);
+  const levels: number[] = [];
+  for (let i = 0; i + win <= samples.length; i += win) levels.push(rms(samples, i, i + win));
+  const sorted = [...levels].sort((a, b) => a - b);
+  const floor = Math.max(0.004, (sorted[Math.floor(sorted.length * 0.9)] ?? 0) * 0.08);
+  const runs: [number, number][] = [];
+  levels.forEach((v, i) => {
+    if (v <= floor) return;
+    const t = i * 0.01;
+    const last = runs[runs.length - 1];
+    if (last && t - last[1] <= minGap) last[1] = t + 0.01;
+    else runs.push([t, t + 0.01]);
+  });
+  return runs.filter(([a, b]) => b - a >= 0.04);
+}
+
+/** Short linear fades at both ends so a clip never starts or stops with a click. */
+export function declick(pcm: Pcm, ms = 8): Pcm {
+  const n = Math.min(Math.floor(pcm.samples.length / 2), Math.round((pcm.sampleRate * ms) / 1000));
+  const s = pcm.samples.slice();
+  for (let i = 0; i < n; i++) {
+    const g = i / n;
+    s[i] *= g;
+    s[s.length - 1 - i] *= g;
+  }
+  return { sampleRate: pcm.sampleRate, samples: s };
+}
+
+/**
+ * Bring a clip to a common speech level (RMS of its voiced part), so one character is never much louder than another.
+ * Gain only, capped so peaks stay below -1 dBFS; the final mix sets the overall loudness.
+ */
+export function levelSpeech(pcm: Pcm, targetDb = -20): Pcm {
+  const { samples, sampleRate } = pcm;
+  const win = Math.round(sampleRate * 0.02);
+  const levels: number[] = [];
+  for (let i = 0; i + win <= samples.length; i += win) levels.push(rms(samples, i, i + win));
+  const voiced = levels.filter((v) => v > 0.01);
+  if (!voiced.length) return pcm;
+  const mean = Math.sqrt(voiced.reduce((a, v) => a + v * v, 0) / voiced.length);
+  let peak = 0;
+  for (let i = 0; i < samples.length; i++) peak = Math.max(peak, Math.abs(samples[i]));
+  const want = Math.pow(10, targetDb / 20) / mean;
+  const g = Math.min(want, 0.89 / Math.max(peak, 1e-6), 4);
+  return { sampleRate, samples: samples.map((v) => v * g) };
 }

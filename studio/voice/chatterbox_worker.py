@@ -1,8 +1,9 @@
-"""Chatterbox Multilingual (500M, MIT) batch worker, run inside studio/.venv-chatterbox.
+"""Chatterbox Multilingual (500M, MIT) and Chatterbox Turbo (350M, MIT, English) batch worker, run inside studio/.venv-chatterbox.
 
 Protocol: `python chatterbox_worker.py job.json`. The model is loaded (and downloaded on first use) once per batch.
 Each item may carry an `anchor`: a short reference clip that sets the speaker's voice, so different characters
-sound different. Every item has a seed, so the same line gives the same voice every time. Failures are reported
+sound different. With "model": "turbo" in the job it loads Turbo instead, which also performs inline tags such
+as [laugh], [sigh] and [chuckle] (an optional ~4 GB download made only by `npm run voices:setup -- --only turbo`). Every item has a seed, so the same line gives the same voice every time. Failures are reported
 per item in the result file; GPU out-of-memory never takes down the whole batch.
 """
 import json
@@ -14,22 +15,43 @@ import traceback
 os.environ.setdefault("PYTHONUTF8", "1")
 
 
+_ONES = "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen".split()
+_TENS = "_ _ twenty thirty forty fifty sixty seventy eighty ninety".split()
+
+
+def _spell(n: int) -> str:
+    if n < 20:
+        return _ONES[n]
+    if n < 100:
+        return _TENS[n // 10] + ("" if n % 10 == 0 else _ONES[n % 10])
+    if n < 1000:
+        return _ONES[n // 100] + "hundred" + ("" if n % 100 == 0 else _spell(n % 100))
+    return str(n)
+
+
 def _norm(text: str) -> str:
     import re
     import unicodedata
 
-    t = unicodedata.normalize("NFC", text).lower()
+    t = unicodedata.normalize("NFC", text).lower().replace("%", " percent")
+    t = re.sub(r"\d+", lambda m: _spell(int(m.group())) if len(m.group()) < 4 else m.group(), t)  # Whisper writes "1%", the script "one percent"
     return re.sub(r"[^\w]", "", t).replace("\u093c", "")  # no punctuation or spaces; nukta spelling differs often
+
+
+def _untag(text: str) -> str:
+    import re
+
+    return re.sub(r"\[[a-zA-Z ]{2,20}\]", " ", text)  # [laugh] is performed, not said, so it is not part of the words to check
 
 
 def _similarity(meant: str, heard: str) -> float:
     import difflib
 
-    return difflib.SequenceMatcher(None, _norm(meant), _norm(heard)).ratio()
+    return difflib.SequenceMatcher(None, _norm(_untag(meant)), _norm(heard), autojunk=False).ratio()
 
 
 def _threshold(text: str, language: str, cfg: dict) -> float:
-    if len(_norm(text)) < 6:
+    if len(_norm(_untag(text))) < 6:
         return cfg.get("min_short", 0.55)
     return cfg.get("min_en", 0.85) if language == "en" else cfg.get("min_other", 0.70)
 
@@ -58,19 +80,31 @@ def main() -> int:
         import numpy as np
         import soundfile as sf
         import torch
-        from chatterbox.mtl_tts import SUPPORTED_LANGUAGES, ChatterboxMultilingualTTS
+        turbo = job.get("model") == "turbo"
+        if turbo:
+            result["engine"] = "turbo"
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
         if device == "cpu" and not job.get("allow_cpu"):
             raise RuntimeError("no CUDA GPU available; Chatterbox on CPU is far too slow (set allow_cpu to force it)")
         t0 = time.time()
-        model = ChatterboxMultilingualTTS.from_pretrained(device)
+        if turbo:
+            from chatterbox.tts_turbo import ChatterboxTurboTTS
+
+            model = ChatterboxTurboTTS.from_pretrained(device)
+            languages = ["en"]
+        else:
+            from chatterbox.mtl_tts import SUPPORTED_LANGUAGES, ChatterboxMultilingualTTS
+
+            model = ChatterboxMultilingualTTS.from_pretrained(device)
+            languages = sorted(SUPPORTED_LANGUAGES.keys())
         result["info"] = {
             "device": device,
             "gpu": torch.cuda.get_device_name(0) if device == "cuda" else None,
             "torch": torch.__version__,
             "sample_rate": model.sr,
-            "languages": sorted(SUPPORTED_LANGUAGES.keys()),
+            "model": "turbo" if turbo else "multilingual",
+            "languages": languages,
             "load_seconds": round(time.time() - t0, 1),
         }
         print(f"ITEM (model loaded on {device} in {time.time() - t0:.0f}s)", flush=True)
@@ -102,13 +136,16 @@ def main() -> int:
                     torch.manual_seed(seed + attempt * 7919)
                     if device == "cuda":
                         torch.cuda.manual_seed_all(seed + attempt * 7919)
-                    wav = model.generate(
-                        text_in,
-                        language_id=language,
-                        audio_prompt_path=anchor or None,
-                        exaggeration=float(it.get("exaggeration", 0.5)),
-                        cfg_weight=float(it.get("cfg", 0.5)) if attempt == 0 else 0.5,
-                    )
+                    if turbo:
+                        wav = model.generate(text_in, audio_prompt_path=anchor or None, temperature=float(it.get("temperature", 0.8)))
+                    else:
+                        wav = model.generate(
+                            text_in,
+                            language_id=language,
+                            audio_prompt_path=anchor or None,
+                            exaggeration=float(it.get("exaggeration", 0.5)),
+                            cfg_weight=float(it.get("cfg", 0.5)) if attempt == 0 else 0.5,
+                        )
                     audio = wav.squeeze().detach().cpu().numpy().astype(np.float32)
                     if audio.size == 0 or not np.isfinite(audio).all():
                         continue

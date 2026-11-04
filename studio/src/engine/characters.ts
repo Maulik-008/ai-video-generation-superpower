@@ -2,15 +2,19 @@ import * as THREE from 'three';
 import type { Action, ResolvedCharacter } from '../types';
 import type { FaceParams } from './emotions';
 import { shadowTexture } from './textures';
-import { clamp, rng, smoothstep } from './util';
+import { clamp, easeOutCubic, rng, smoothstep } from './util';
 
 export type Metrics = { height: number; headY: number; chestY: number; width: number; faceW: number };
 export type CharState = {
   t: number; // seconds
   face: FaceParams;
-  speak: number; // 0..1 mouth openness from the audio
+  speak: number; // 0..1 mouth openness from the audio (fast, follows syllables)
+  shape: number; // 0..1 mouth width (0 round "oo", 1 wide "ee")
+  energy: number; // 0..1 slow speaking energy: drives gestures so arms move in phrases, not per syllable
   action: { name: Action; p: number } | null; // p = 0..1 progress
   yaw: number;
+  gaze: [number, number]; // -1..1 eye direction
+  blink: number; // 0 open .. 1 closed
   seed: number;
 };
 export interface Rig {
@@ -24,20 +28,18 @@ const std = (color: string, o: THREE.MeshStandardMaterialParameters = {}) =>
 const box = (w: number, h: number, d: number, m: THREE.Material) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
 const ico = (r: number, detail: number, m: THREE.Material) => new THREE.Mesh(new THREE.IcosahedronGeometry(r, detail), m);
 
-export function blinkAmount(t: number, seed: number): number {
-  const period = 3.3;
-  const phase = (t + seed * 1.7) % period;
-  return phase < 0.15 ? Math.sin((Math.PI * phase) / 0.15) : 0;
-}
-
 // ---------------------------------------------------------------------------------------------
 // Pose: idle breathing + talking gestures + one-shot actions, all pure functions of time.
 // ---------------------------------------------------------------------------------------------
 type Arm = { fwd: number; abd: number };
 type Pose = { y: number; z: number; lean: number; sway: number; squash: number; headX: number; headY: number; headZ: number; armL: Arm; armR: Arm };
 
+/** A one-shot bump that rises quickly, holds, and settles gently (attack 0..0.3, release 0.6..1). */
+const bump = (p: number) => (p < 0.3 ? easeOutCubic(p / 0.3) : p < 0.6 ? 1 : 1 - smoothstep((p - 0.6) / 0.4));
+
 function computePose(s: CharState, armRest: number): Pose {
   const { t, seed, face: f, speak: a } = s;
+  const e = clamp(s.energy * 1.7, 0, 1);
   const p: Pose = {
     y: f.bounce * Math.abs(Math.sin(t * 5.5 + seed)) * 0.09,
     z: 0,
@@ -50,47 +52,62 @@ function computePose(s: CharState, armRest: number): Pose {
     armL: { fwd: 0, abd: armRest },
     armR: { fwd: 0, abd: armRest },
   };
-  if (a > 0.03) {
-    const g1 = a * (0.5 + 0.5 * Math.sin(t * 4.4 + seed));
-    const g2 = a * (0.5 + 0.5 * Math.sin(t * 3.7 + seed * 1.7 + 1));
-    p.headX += (a - 0.3) * 0.09;
-    p.headZ += Math.sin(t * 3.1 + seed) * 0.035 * a;
-    p.headY += Math.sin(t * 2.3 + seed) * 0.05 * a;
+  if (e > 0.01) {
+    // gestures follow the slow speaking energy, in two overlapping rhythms, so the arms move in phrases
+    const g1 = e * (0.5 + 0.5 * Math.sin(t * 2.6 + seed));
+    const g2 = e * (0.5 + 0.5 * Math.sin(t * 2.1 + seed * 1.7 + 1));
+    p.headX += (a - 0.3) * 0.05 * e + Math.sin(t * 3.4 + seed) * 0.025 * e;
+    p.headZ += Math.sin(t * 1.9 + seed) * 0.035 * e;
+    p.headY += Math.sin(t * 1.5 + seed) * 0.05 * e;
     p.armR.fwd += 0.7 * g1;
     p.armR.abd += 0.28 * g1;
     p.armL.fwd += 0.45 * g2;
     p.armL.abd += 0.2 * g2;
-    p.lean += 0.02 * a;
+    p.lean += 0.025 * e;
   }
   if (s.action) {
     const ap = clamp(s.action.p, 0, 1);
-    const bump = Math.sin(Math.PI * ap);
+    const b = bump(ap);
     switch (s.action.name) {
       case 'nod':
-        p.headX += Math.sin(ap * Math.PI * 4) * 0.26 * (1 - ap);
+        p.headX += Math.sin(ap * Math.PI * 3) * 0.24 * Math.pow(1 - ap, 1.5);
         break;
       case 'shake':
-        p.headY += Math.sin(ap * Math.PI * 6) * 0.4 * (1 - ap * 0.6);
+        p.headY += Math.sin(ap * Math.PI * 5) * 0.38 * Math.pow(1 - ap, 1.2);
         break;
       case 'shrug':
-        p.armL.abd += 0.55 * bump;
-        p.armR.abd += 0.55 * bump;
-        p.headZ += 0.1 * bump;
-        p.headX -= 0.06 * bump;
-        p.y += 0.04 * bump;
+        p.armL.abd += 0.55 * b;
+        p.armR.abd += 0.55 * b;
+        p.headZ += 0.1 * b;
+        p.headX -= 0.06 * b;
+        p.y += 0.04 * b;
         break;
       case 'point':
-        p.armR.fwd += 1.5 * bump;
-        p.armR.abd += 0.1 * bump;
-        p.lean += 0.07 * bump;
+        p.armR.fwd += 1.5 * b;
+        p.armR.abd += 0.1 * b;
+        p.lean += 0.07 * b;
         break;
       case 'lean-in':
-        p.lean += 0.2 * bump;
-        p.z += 0.2 * bump;
+        p.lean += 0.2 * b;
+        p.z += 0.2 * b;
         break;
-      case 'jump':
-        p.y += Math.max(0, Math.sin(ap * Math.PI * 2)) * 0.38 * (1 - ap * 0.4);
+      case 'jump': {
+        // anticipation (crouch), flight, landing squash: the three beats that make a jump read as weight
+        if (ap < 0.16) {
+          const k = Math.sin((ap / 0.16) * Math.PI);
+          p.y -= 0.05 * k;
+          p.squash -= 0.07 * k;
+        } else if (ap < 0.66) {
+          const k = (ap - 0.16) / 0.5;
+          p.y += Math.sin(k * Math.PI) * 0.42;
+          p.squash += 0.05 * Math.sin(k * Math.PI);
+        } else if (ap < 0.84) {
+          const k = Math.sin(((ap - 0.66) / 0.18) * Math.PI);
+          p.squash -= 0.06 * k;
+          p.y -= 0.02 * k;
+        }
         break;
+      }
       case 'slump': {
         const k = smoothstep(ap * 1.6);
         p.lean += 0.28 * k;
@@ -165,18 +182,21 @@ function buildFace(o: FaceOpts) {
   const openMouth = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), new THREE.MeshBasicMaterial({ color: 0x2b0d14 }));
   g.add(openMouth);
 
-  function update(f: FaceParams, amp: number, blink: number) {
+  function update(f: FaceParams, amp: number, blink: number, shape = 0.5, gaze: [number, number] = [0, 0]) {
     const open = clamp(f.open + amp * 0.95, 0, 1);
     const eyeOpen = f.eye * (1 - 0.93 * blink);
+    const gx = gaze[0] * o.eyeW * 0.45;
+    const gy = gaze[1] * o.eyeH * 0.3;
     const happyArc = o.arcEyes && f.curve > 0.7;
     sides.forEach((side, i) => {
       const eye = eyes[i];
       eye.visible = !happyArc;
       if (o.round) eye.scale.set(o.eyeW, o.eyeH * eyeOpen, o.eyeW * 0.55);
       else eye.scale.set(o.eyeW * 2, o.eyeH * 2 * eyeOpen, 0.08);
+      eye.position.set(side * o.eyeX + gx, o.eyeY + gy, o.eyeZ);
       if (o.round) {
         glints[i].visible = !happyArc && eyeOpen > 0.4;
-        glints[i].position.set(side * o.eyeX + o.eyeW * 0.35, o.eyeY + o.eyeH * 0.38 * eyeOpen, o.eyeZ + o.eyeW * 0.5);
+        glints[i].position.set(side * o.eyeX + gx + o.eyeW * 0.35, o.eyeY + gy + o.eyeH * 0.38 * eyeOpen, o.eyeZ + o.eyeW * 0.5);
       }
       if (arcs[i]) arcs[i].visible = happyArc;
       const asym = side < 0 ? f.browAsym : -f.browAsym;
@@ -191,7 +211,8 @@ function buildFace(o: FaceOpts) {
     openMouth.visible = showOpen;
     if (showOpen) {
       openMouth.position.set(0, o.mouthY, o.mouthZ);
-      openMouth.scale.set(o.mouthW * 0.5 * f.mouthW * (1.05 - 0.3 * open), 0.014 + o.mouthH * 0.6 * open, 0.05);
+      const wide = 0.78 + 0.44 * shape; // "ee" is wide and flat, "oo" narrow and tall
+      openMouth.scale.set(o.mouthW * 0.5 * f.mouthW * (1.05 - 0.3 * open) * wide, 0.014 + o.mouthH * 0.6 * open * (1.18 - 0.36 * shape), 0.05);
     }
     const showArc = !showOpen && (o.mouthAlways || Math.abs(f.curve) > 0.35);
     arc.visible = showArc;
@@ -382,7 +403,7 @@ function buildHuman(c: ResolvedCharacter, seed: number): Rig {
       headPivot.rotation.set(p.headX, p.headY, p.headZ);
       arms[0].rotation.set(-p.armL.fwd, 0, -p.armL.abd);
       arms[1].rotation.set(-p.armR.fwd, 0, p.armR.abd);
-      face.update(s.face, s.speak, blinkAmount(s.t, s.seed));
+      face.update(s.face, s.speak, s.blink, s.shape, s.gaze);
       shadow.scale.setScalar(1 - p.y * 0.4);
     },
   };
@@ -457,7 +478,7 @@ function buildCube(c: ResolvedCharacter): Rig {
       upper.scale.y = 1 + p.squash;
       nubs[0].rotation.set(0, p.armL.fwd * 0.8, -p.armL.abd * 0.8);
       nubs[1].rotation.set(0, -p.armR.fwd * 0.8, p.armR.abd * 0.8);
-      face.update(s.face, s.speak, blinkAmount(s.t, s.seed));
+      face.update(s.face, s.speak, s.blink, s.shape, s.gaze);
       shadow.scale.setScalar(1 - p.y * 0.4);
     },
   };
@@ -528,7 +549,7 @@ function buildBlob(c: ResolvedCharacter): Rig {
       upper.scale.set(1 - p.squash * 0.6, 1 + p.squash, 1 - p.squash * 0.6);
       nubs[0].rotation.set(0, p.armL.fwd * 0.8, -p.armL.abd * 0.9);
       nubs[1].rotation.set(0, -p.armR.fwd * 0.8, p.armR.abd * 0.9);
-      face.update(s.face, s.speak, blinkAmount(s.t, s.seed));
+      face.update(s.face, s.speak, s.blink, s.shape, s.gaze);
       shadow.scale.setScalar(1 - p.y * 0.4);
     },
   };

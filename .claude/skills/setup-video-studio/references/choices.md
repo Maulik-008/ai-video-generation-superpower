@@ -21,6 +21,7 @@ What `setup.mjs` can install or configure, what each choice means, and what it c
 | **Voices** | always available | The free Microsoft Edge voices (internet needed) and, on Windows, the offline Windows voice. Nothing to install | 0 |
 | | `voices.kokoro` | Kokoro: natural, calm voices. Python environment + model. No GPU needed. 54 voices, 8 languages including Hindi | about 350 MB / 510 MB |
 | | `voices.chatterbox` | Chatterbox: the most expressive, 23 languages including Hindi. PyTorch with CUDA + model. **Needs an NVIDIA GPU** | about 5.8 GB / 8.4 GB |
+| | `voices.turbo` | Chatterbox Turbo, an optional add-on: English only, the most natural, and it performs `[laugh]` `[sigh]` `[chuckle]` tags in a script. Shares the Chatterbox environment (Chatterbox is added to the plan if it is missing). **Off unless chosen** | about 4.0 GB / 4.1 GB |
 | | `voices.speechCheck` | Whisper (about 1 GB) lets Chatterbox listen to each line and retry bad takes. Only matters with Chatterbox. On by default | about 1 GB |
 | | `voices.dir` | Where the `.venv-*` environments and `.models` live. Empty = inside `studio/`. Use another drive for the big downloads | |
 | | `voices.python` | Which Python (3.10 to 3.13, 3.11 recommended) creates the environments. Empty = detect | |
@@ -36,7 +37,7 @@ JSON, saved by the skill as `studio/.studio-setup.answers.json` (git-ignored). E
   "core":    { "install": "yes", "packageManager": "npm" },
   "ffmpeg":  { "mode": "bundled" },
   "browser": { "mode": "system" },
-  "voices":  { "kokoro": true, "chatterbox": false, "speechCheck": true, "dir": "", "python": "" },
+  "voices":  { "kokoro": true, "chatterbox": false, "turbo": false, "speechCheck": true, "dir": "", "python": "" },
   "outputDir": "",
   "verify": "check"
 }
@@ -57,7 +58,7 @@ The choices are remembered in `studio/.studio-setup.json` (git-ignored). The stu
 | `node setup.mjs --apply --answers FILE` | Do it, without questions |
 | `node setup.mjs --apply --yes` | The smallest safe setup: packages only, no big downloads |
 | `node setup.mjs --verify --level check\|sample\|demo` | Check that it works |
-| `node setup.mjs --remove TARGET [--force]` | Delete something it installed: `kokoro`, `chatterbox`, `voice-models`, `all-voices`, `browser`, `deps`, `config`. `--dry-run` shows what would go and how much space it frees |
+| `node setup.mjs --remove TARGET [--force]` | Delete something it installed: `kokoro`, `chatterbox`, `turbo`, `voice-models`, `all-voices`, `browser`, `deps`, `config`. `--dry-run` shows what would go and how much space it frees |
 
 ## If something is missing
 

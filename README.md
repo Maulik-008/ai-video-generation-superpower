@@ -2,16 +2,17 @@
 
 **Tell Claude a story. Get back an animated video with voices.**
 
-Describe any story, topic or script. Claude asks a few multiple-choice questions, brainstorms three different angles for you to pick from, writes the script, and a worker agent renders the finished MP4: low-poly 3D characters that talk with lip-sync, captions, camera cuts and a voice for every character. It runs on your own machine with free tools. No accounts, no paid APIs.
+Describe any story, topic or script. Claude asks a few multiple-choice questions, brainstorms three different angles for you to pick from, writes the script, and a worker agent renders the finished MP4: low-poly 3D characters at 60 fps that talk with lip-sync, bold word-by-word captions, camera cuts and transitions, sound effects, and a voice for every character. A critic agent then reviews the video before you get it. It runs on your own machine with free tools. No accounts, no paid APIs.
 
 ```
 You:  /video-studio a developer asks an AI not to deploy at 3 a.m. (it finds a loophole)
 Claude (director):  asks length / tone / world / cast ─► brainstorms 3 concepts ─► you pick one
                     ─► writes the script ─► you confirm once
-video-producer (agent):  voices ─► 3D render ─► checks preview frames ─► ffmpeg ─► MP4
+video-producer (agent):  voices ─► word timing ─► 60 fps 3D render ─► mix ─► QA ─► MP4
+video-critic (agent):    contact sheet + frames at every cut ─► ranked fixes ─► one polish round
 ```
 
-A 30-second vertical video builds in about 30 seconds on a machine with a GPU.
+A 30-second vertical video renders in about 40 seconds on a machine with a GPU, plus the time to make any new voices. The whole flow, with a live test, is in [docs/WORKFLOW.md](docs/WORKFLOW.md).
 
 ---
 
@@ -86,18 +87,21 @@ Details in [Better voices](#better-voices-calm-warm-emotional) below.
 | 2. Ask | director | Multiple-choice questions for only what is missing, at most two rounds |
 | 3. Brainstorm | director | Three genuinely different concepts shown side by side; you pick one |
 | 4. Script | director | Full shot list and dialogue; one confirmation covers the whole build |
-| 5. Build | `video-producer` agent | Validates the story, makes the voices, renders, looks at preview frames, fixes technical problems (camera, cast, timing) and checks the MP4 |
-| 6. Iterate | both | Offers quick tweaks: a line, a voice, a set, the ending, 1080p |
+| 5. Build | `video-producer` agent | Validates the story, makes the voices, renders, runs QA, looks at the contact sheet and preview frames, fixes technical problems (camera, cast, timing) and checks the MP4 |
+| 6. Review | `video-critic` agent | Watches the result with fresh eyes against [the quality bar](.claude/skills/video-studio/references/quality.md) and returns ranked fixes; the director applies the technical ones in one polish round |
+| 7. Iterate | director | Offers quick tweaks: a line, a voice, a set, the ending, 1080p |
 
 Only the director talks to you, because only the main conversation can ask questions. The agent never changes the story; it fixes technical problems only.
 
 Under the hood the studio engine turns `story.json` into a video like this:
 
 ```
-story.json ─► validate ─► voices (free Edge neural voices ─► WAV, silence trimmed)
-           ─► timeline.json (frame timing, caption chunks, lip-sync from the audio)
-           ─► three.js scene in headless Chrome, 6 parallel browsers, one frame at a time
-           ─► ffmpeg: video + mixed audio (speech loudness, optional music ducked) ─► MP4
+story.json ─► validate ─► voices (best local or free engine per character ─► WAV, checked, levelled)
+           ─► word timing (Whisper timestamps matched onto the script)
+           ─► timeline.json (frames, caption groups, mouth + width tracks, transitions, effects, room tone)
+           ─► three.js scene in headless Chrome, 6 parallel browsers, 60 fps, springs for every motion
+           ─► ffmpeg: video + mixed audio (speech at -16 LUFS, effects, room tone, music ducked, limiter) ─► MP4
+           ─► QA: picture, loudness, pacing, captions, contact sheet, transcript of the final mix
 ```
 
 ---
@@ -129,7 +133,8 @@ The full contract (every field, the voice table, camera guide and the writing ru
 
 | Project | Shows | Length |
 |---|---|---|
-| `the-3am-deploy` | Developer + cube AI, night rooftop, laptop-screen insert, a twist ending | 26.8 s |
+| `battery-low` | The showcase: a person, a robot vacuum and a cat-blob, two sets, every transition, punch-ins, effects, Chatterbox voices | 28.1 s |
+| `the-3am-deploy` | Developer + cube AI, night rooftop, laptop-screen insert, a twist ending | 26.5 s |
 | `example-small-change` | The same pair with a title card and every shot type | 30.5 s |
 | `hindi-chai` | Hindi voices and Devanagari captions, a person and a blob | 15.8 s |
 | `_gallery` | A silent test of all six sets and the three character types (a visual check, not a story) | |
@@ -148,7 +153,8 @@ Every character picks a voice **engine** and a **delivery** in `story.json`:
 |---|---|---|
 | `chatterbox` | The most expressive: reacts to the emotion of each line, 23 languages including Hindi, a distinct voice per character | NVIDIA GPU, about 7 GB (`voices:setup`) |
 | `kokoro` | Natural, steady, fast on a CPU, 54 voices in 8 languages including Hindi. A good calm narrator | about 0.35 GB (`voices:setup`) |
-| `edge` | The default. Free Microsoft voices, 300+ of them including Gujarati | internet |
+| `turbo` | Optional. Chatterbox Turbo: English only, the most natural, and the one engine that performs `[laugh]` `[sigh]` `[chuckle]` written into a line (other engines skip the tags) | about 4 GB more, on top of Chatterbox (`npm run voices:setup -- --only turbo`, or pick it in setup) |
+| `edge` | The default. Free Microsoft voices, 300+ of them including Gujarati. The `…MultilingualNeural` English voices sound the most natural | internet |
 | `sapi` | Windows' built-in voice, offline, robotic. Last resort | Windows |
 
 | Delivery | What changes |
@@ -157,7 +163,7 @@ Every character picks a voice **engine** and a **delivery** in `story.json`:
 | `warm` | Slightly slower, a short pause between longer sentences, the emotion of each line shapes the delivery, warm mastering |
 | `calm` | Slower again, longer pauses, softer pitch. For heartfelt, apology, comfort and bedtime stories |
 
-`engine: auto` uses the best engine that passed `npm run voices:check` (chatterbox, then kokoro, then edge, then offline). **It is built to always produce a video:** each character has a chain of fallbacks, a missing or failing engine is skipped with the reason in the log and in `projects/<slug>/voices-report.json`, every generated clip is checked for silence, clipping and implausible length before it is used, and finished lines are cached so re-runs start no engine at all. A character always has one engine per video, never half and half.
+`engine: auto` uses the best engine that passed `npm run voices:check` (turbo for English, then chatterbox, kokoro, edge, offline). **It is built to always produce a video:** each character has a chain of fallbacks, a missing or failing engine is skipped with the reason in the log and in `projects/<slug>/voices-report.json`, every generated clip is checked for silence, clipping and implausible length before it is used, and finished lines are cached so re-runs start no engine at all. A character always has one engine per video, never half and half.
 
 **Chatterbox checks its own work.** Generated speech can occasionally mumble, invent extra words or skip a very short line (testing found exactly this in Hindi). So after every clip Chatterbox transcribes what it said with Whisper (a 1 GB model, installed by `voices:setup`), compares it with the intended text, and retries with a different take up to three times. A line that still does not match fails, and that character moves to the next engine. Set `VIDEO_STUDIO_NO_VERIFY=1` to switch the check off. Lines of one or two words ("Thanks.") are the hardest for it: where you can, make them a little longer.
 
@@ -171,12 +177,14 @@ Measured on the demo story: natural Edge speaks at about 3.2 words per second, `
 |---|---|
 | **Characters** | `human` (5 hair styles, sits or stands), `cube` (robot, AI, any object), `blob` (pet, creature, mascot). Up to 5 per video, each with their own colours, scale and voice |
 | **Sets** | `skyline-night`, `space-stage`, `cozy-room`, `office-day`, `sunny-park`, `studio` |
-| **Acting** | 10 emotions, 8 gestures, blinking, breathing, and a mouth that follows the speech |
-| **Camera** | wide, two-shot, medium, close, over-the-shoulder, low, high, laptop-screen insert, with slow push-ins, pull-outs, drifts and orbits |
-| **Sound** | Four free voice engines with automatic fallback (above); 300+ Edge voices including Gujarati, 54 Kokoro voices, 23 Chatterbox languages; calm / warm delivery; optional background music from a file you supply, quietened under speech |
-| **Picture** | vertical 9:16 (default), square or landscape; 720p or 1080p; captions coloured per speaker |
+| **Acting** | 10 emotions, 8 gestures (eased, with anticipation and follow-through), gestures that follow the speech in phrases, springy expressions, irregular blinks, eye darts, and a mouth that opens and widens with the speech |
+| **Camera** | wide, two-shot, medium, close, over-the-shoulder, low, high, laptop-screen insert, with slow push-ins, pull-outs, drifts, orbits and a springy `punch-in` |
+| **Transitions** | cut, crossfade, dip to black, whip pan with motion blur, zoom blur |
+| **Captions** | bold, word by word, the spoken word lit in the speaker's colour, timed by Whisper; or classic phrases; any script your system fonts have (Hindi tested) |
+| **Sound** | Five voice engines with automatic fallback (above); 300+ Edge voices including Gujarati, 54 Kokoro voices, 23 Chatterbox languages; calm / warm delivery; sound effects and a room tone per set, made by ffmpeg; optional background music from a file you supply, quietened under speech |
+| **Picture** | vertical 9:16 (default), square or landscape; 720p or 1080p; 60 fps (or 30) |
 
-**Not supported:** crowds, vehicles, realistic animals, composed music, sound effects. The director reshapes ideas to fit what the engine can draw.
+**Not supported:** crowds, vehicles, realistic animals, composed music. The director reshapes ideas to fit what the engine can draw.
 
 ---
 
@@ -190,14 +198,15 @@ Run from `studio/`. `<slug>` is a folder name under `studio/projects/`.
 | `npm run tts -- <slug>` | Makes the voices and `timeline.json` |
 | `npm run preview -- <slug>` | One still frame per shot in `out/stills/` (`--shots s01,s03`, `--frames 120,400`) |
 | `npm run render -- <slug>` | Renders `out/<slug>.mp4` |
-| `npm run build -- <slug>` | All of the above, then copies the MP4 to your Videos folder |
+| `npm run build -- <slug>` | All of the above, then QA, then copies the MP4 to your Videos folder |
+| `npm run qa -- <slug>` | Checks the finished video (picture, loudness, pacing, captions) and writes a contact sheet; `--listen` also transcribes the final mix and compares it with the script |
 | `node setup.mjs` (repo root) | The first-time setup wizard; also `--status`, `--plan`, `--apply`, `--verify`, `--remove` (see [docs/SETUP.md](docs/SETUP.md)) |
 | `npm run voices:setup` | Installs the Kokoro and Chatterbox voice engines (`-- --only kokoro` for one) |
 | `npm run voices:check` | Makes a real test sentence with every engine and records which are ready |
 | `npm run demo` | Builds the voice demo (English and Hindi, four voice variants) into `Videos\VideoStudio\voice-demo\` |
 | `npm run typecheck` | Type-checks the engine |
 
-Flags: `--provider auto|edge|kokoro|chatterbox|sapi` (default `auto` = whatever each character has in the story; another value forces that engine for everyone, still with fallback), `--delivery natural|warm|calm`, `--res 720p|1080p`, `--workers N`, `--no-stills`, `--keep-frames`. `preview` and `render` rebuild the timeline automatically when `story.json` is newer than it.
+Flags: `--provider auto|edge|kokoro|chatterbox|turbo|sapi` (default `auto` = whatever each character has in the story; another value forces that engine for everyone, still with fallback), `--delivery natural|warm|calm`, `--res 720p|1080p`, `--fps 30|60`, `--workers N`, `--no-stills`, `--keep-frames`, `--no-qa`, `--listen`. `preview` and `render` rebuild the timeline automatically when `story.json` is newer than it.
 
 ---
 
@@ -208,20 +217,24 @@ Flags: `--provider auto|edge|kokoro|chatterbox|sapi` (default `auto` = whatever 
   skills/video-studio/
     SKILL.md                 the director: understand, ask, brainstorm, script, build, iterate
     references/brainstorm.md the question bank and how to brainstorm three concepts
+    references/quality.md    the quality bar: engagement, motion, captions, sound (used by all three roles)
     formats/story.md         the story.json contract and the writing rules
     formats/talkstuff.md     the Pixar-style talking-object format (browser engine)
     engines/studio.md        commands and the worker runbook for the studio engine
     engines/browser.md       the older Gemini + Flow/Grok route
-  agents/video-producer.md   the worker agent
+  agents/video-producer.md   the worker agent (build, QA, technical fixes)
+  agents/video-critic.md     the reviewer agent (fresh eyes, ranked fixes, never edits)
 studio/
   src/types.ts               the story schema
   src/engine/                characters, sets, camera, emotions, the world renderer
   src/player/index.html      the page that is captured frame by frame
   scripts/                   validate, tts, preview, render, build, demo, voices-setup, voices-check (+ lib/)
   scripts/lib/voices/        the voice engines, delivery presets, fallback chains, quality checks
-  voice/                     Python workers for Kokoro and Chatterbox (+ an optional Whisper checker)
+  voice/                     Python workers for Kokoro and Chatterbox / Turbo, the Whisper checker and word aligner
   .venv-*/ .models/          the local engines and their models (git-ignored)
   projects/<slug>/           story.json (yours), audio/, out/ (generated, not committed)
+docs/WORKFLOW.md             the whole flow, director to critic, with a live test
+docs/TOOLING_RESEARCH.md     the 14 tools reviewed (HyperFrames, Chatterbox, Whisper, GSAP, Remotion...) and what was adopted
 docs/BUILD_LOG.md            how all of this was built, stage by stage, with token usage
 ```
 
@@ -235,7 +248,8 @@ docs/BUILD_LOG.md            how all of this was built, stage by stage, with tok
 | A new place | Add a function to `studio/src/engine/sets.ts` and the name to `SETS` in `types.ts` |
 | A new character type | Add a builder to `studio/src/engine/characters.ts` and the name to `KINDS` |
 | A different voice engine | Add an entry to `studio/scripts/lib/voices/engines.ts` (it turns sentences into 24 kHz mono audio and returns an `Error` instead of throwing), then add its name to `ENGINES` in `types.ts` and to the chains in `bank.ts` |
-| Sound effects | Add an `sfx` field to lines in `types.ts`, place short WAVs in `timeline.ts`, mix them in `render.ts` |
+| A new sound effect | Add its name to `SFX` in `types.ts` and an ffmpeg recipe plus a gain to `studio/scripts/lib/sfx.ts` |
+| A new transition | Add its name to `TRANSITIONS` in `types.ts`, a length and mode in `src/engine/world.ts`, and a branch in the compositing shader there |
 
 ---
 
@@ -265,7 +279,7 @@ docs/BUILD_LOG.md            how all of this was built, stage by stage, with tok
 ## Privacy and licences
 
 - **What leaves your computer:** with the Edge voices, only the dialogue text, sent to Microsoft's free text-to-speech service. Kokoro, Chatterbox and the offline Windows voice run entirely on your machine (use `--provider kokoro` for a fully local video). Rendering, scripts and files always stay on your machine. The one-time setup downloads models from GitHub and Hugging Face.
-- **Licences:** the studio engine uses permissively licensed tools: three.js (MIT), puppeteer-core (Apache-2.0), esbuild (MIT), msedge-tts (MIT), zod (MIT). Kokoro (Apache-2.0) and Chatterbox (MIT) are free for company use. Every Chatterbox clip carries an imperceptible watermark from its maker, which this tool does not remove. PyTorch is BSD-licensed. Voices are not cloned from real people: Chatterbox characters get their voice from a short reference clip generated by Kokoro or Edge, never from a recording of a person. The ffmpeg binary installed by `ffmpeg-static` is GPL-3.0, which only matters if you redistribute it. Remotion was deliberately **not** used: its licence requires a paid company licence for organisations with more than three people.
+- **Licences:** the studio engine uses permissively licensed tools: three.js (MIT), puppeteer-core (Apache-2.0), esbuild (MIT), msedge-tts (MIT), zod (MIT). Kokoro (Apache-2.0), Chatterbox and Chatterbox Turbo (MIT) and Whisper (MIT) are free for company use. Sound effects and room tone are synthesised by ffmpeg, so there are no sample licences. GSAP was not used (its licence is not open source); the engine has its own easing and spring functions. Why each of the 14 tools in the "better AI videos" list was adopted, borrowed from or skipped: [docs/TOOLING_RESEARCH.md](docs/TOOLING_RESEARCH.md). Every Chatterbox clip carries an imperceptible watermark from its maker, which this tool does not remove. PyTorch is BSD-licensed. Voices are not cloned from real people: Chatterbox characters get their voice from a short reference clip generated by Kokoro or Edge, never from a recording of a person. The ffmpeg binary installed by `ffmpeg-static` is GPL-3.0, which only matters if you redistribute it. Remotion was deliberately **not** used: its licence requires a paid company licence for organisations with more than three people.
 - **Content:** the director is instructed not to write hateful, harassing or misleading content, or to invent facts about real people or companies.
 
 ---

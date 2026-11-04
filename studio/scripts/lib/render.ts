@@ -7,6 +7,13 @@ import { findBrowser, launch } from './browser.ts';
 import { probeMedia, runFfmpeg } from './ffmpeg.ts';
 import type { Project } from './paths.ts';
 import { buildPlayer, grabFrame, openPlayer } from './player.ts';
+import { ambienceFile, sfxFile } from './sfx.ts';
+
+/** Empty a folder without removing it: on Windows a folder that is open in Explorer (or a terminal) cannot be deleted. */
+function emptyDir(dir: string) {
+  fs.mkdirSync(dir, { recursive: true });
+  for (const f of fs.readdirSync(dir)) fs.rmSync(path.join(dir, f), { recursive: true, force: true });
+}
 
 type Opts = { workers?: number; keepFrames?: boolean; outName?: string; log: (m: string) => void };
 
@@ -42,8 +49,7 @@ export function defaultStillFrames(tl: Timeline, only?: string[]): { name: strin
 
 export async function renderStills(project: Project, tl: Timeline, targets: { name: string; frame: number }[], opts: Opts): Promise<string[]> {
   const dir = path.join(project.outDir, 'stills');
-  fs.rmSync(dir, { recursive: true, force: true });
-  fs.mkdirSync(dir, { recursive: true });
+  emptyDir(dir);
   const { close, pages } = await startPages(1, tl, opts.log);
   const out: string[] = [];
   try {
@@ -62,8 +68,7 @@ export async function renderStills(project: Project, tl: Timeline, targets: { na
 export async function renderVideo(project: Project, tl: Timeline, opts: Opts): Promise<string> {
   const { log } = opts;
   const framesDir = path.join(project.outDir, 'frames');
-  fs.rmSync(framesDir, { recursive: true, force: true });
-  fs.mkdirSync(framesDir, { recursive: true });
+  emptyDir(framesDir);
   const workers = opts.workers ?? Math.min(6, Math.max(2, Math.floor(os.cpus().length / 4)));
   log(`Rendering ${tl.frames} frames at ${tl.width}x${tl.height} with ${workers} parallel pages`);
   const { close, pages } = await startPages(workers, tl, log);
@@ -103,38 +108,73 @@ export async function renderVideo(project: Project, tl: Timeline, opts: Opts): P
 
 async function mux(project: Project, tl: Timeline, framesDir: string, outFile: string, log: (m: string) => void) {
   const D = tl.frames / tl.fps;
+  const ms = (frame: number) => Math.max(0, Math.round((frame / tl.fps) * 1000));
   const lines = tl.shots.flatMap((s) => s.lines);
   const args: string[] = ['-framerate', String(tl.fps), '-i', path.join(framesDir, '%06d.jpg')];
-  lines.forEach((l) => args.push('-i', path.join(project.dir, l.audio)));
+  let n = 1;
+  const input = (...a: string[]) => {
+    args.push(...a);
+    return n++;
+  };
   let fc = '';
-  let final = 'aout';
+  // 1) speech: every line at its time, then normalised to -16 LUFS (dialogue sets the loudness of the whole video)
   if (lines.length === 0) {
-    args.push('-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo');
-    fc = `[1:a]atrim=0:${D.toFixed(3)}[aout]`;
+    const i = input('-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=mono');
+    fc += `[${i}:a]atrim=0:${D.toFixed(3)}[speech];`;
   } else {
-    lines.forEach((l, i) => {
-      fc += `[${i + 1}:a]adelay=${Math.round((l.start / tl.fps) * 1000)}:all=1[a${i}];`;
-    });
-    fc += `${lines.map((_, i) => `[a${i}]`).join('')}amix=inputs=${lines.length}:normalize=0:duration=longest,loudnorm=I=-16:TP=-1.5:LRA=11[speech];`;
-    let mixed = 'speech';
-    if (tl.music) {
-      const idx = lines.length + 1;
-      args.push('-stream_loop', '-1', '-i', path.join(project.dir, tl.music.src));
-      fc += `[speech]asplit=2[s1][s2];[${idx}:a]volume=${tl.music.volume}[mv];[mv][s1]sidechaincompress=threshold=0.03:ratio=10:attack=15:release=400[md];[s2][md]amix=inputs=2:normalize=0:duration=longest[mix];`;
-      mixed = 'mix';
-    }
-    fc += `[${mixed}]apad,afade=t=out:st=${Math.max(0, D - 0.6).toFixed(3)}:d=0.6[${final}]`;
+    const ids = lines.map((l) => ({ i: input('-i', path.join(project.dir, l.audio)), l }));
+    ids.forEach(({ i, l }, k) => (fc += `[${i}:a]adelay=${ms(l.start)}:all=1[a${k}];`));
+    fc += `${ids.map((_, k) => `[a${k}]`).join('')}amix=inputs=${ids.length}:normalize=0:duration=longest,loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000[speech];`;
   }
+  let main = 'speech';
+  if (tl.music) {
+    const i = input('-stream_loop', '-1', '-i', path.join(project.dir, tl.music.src));
+    fc += `[speech]asplit=2[s1][s2];[${i}:a]volume=${tl.music.volume}[mv];[mv][s1]sidechaincompress=threshold=0.03:ratio=10:attack=15:release=400[md];[s2][md]amix=inputs=2:normalize=0:duration=longest[music];`;
+    main = 'music';
+  }
+  // 2) sound design at fixed levels under the normalised speech: effects, and a quiet room tone per set
+  const beds: string[] = [];
+  // sound design is a nicety: if a sound cannot be made, the video is still built without it
+  const made = async (what: string, fn: () => Promise<string>) => {
+    try {
+      return await fn();
+    } catch (e) {
+      log(`  warning: skipped ${what} (${(e as Error).message.split('\n')[0].slice(0, 160)})`);
+      return null;
+    }
+  };
+  for (const [k, c] of tl.sfx.entries()) {
+    const file = await made(`sound effect "${c.name}"`, () => sfxFile(c.name));
+    if (!file) continue;
+    const i = input('-i', file);
+    fc += `[${i}:a]volume=${c.gain},adelay=${ms(c.frame)}:all=1[x${k}];`;
+    beds.push(`[x${k}]`);
+  }
+  for (const [k, a] of tl.ambience.entries()) {
+    const len = (a.end - a.start) / tl.fps;
+    const file = await made(`ambience for ${a.set}`, () => ambienceFile(a.set, len));
+    if (!file) continue;
+    const i = input('-i', file);
+    const fade = Math.min(0.4, len / 3);
+    fc += `[${i}:a]atrim=0:${len.toFixed(3)},afade=t=in:d=${fade.toFixed(2)},afade=t=out:st=${(len - fade).toFixed(3)}:d=${fade.toFixed(2)},adelay=${ms(a.start)}:all=1[r${k}];`;
+    beds.push(`[r${k}]`);
+  }
+  if (beds.length) {
+    fc += `[${main}]${beds.join('')}amix=inputs=${beds.length + 1}:normalize=0:duration=first[full];`;
+    main = 'full';
+  }
+  fc += `[${main}]alimiter=limit=0.84:attack=5:release=60:level=false,apad,afade=t=out:st=${Math.max(0, D - 0.6).toFixed(3)}:d=0.6[aout]`;
   const script = path.join(project.outDir, 'audio-graph.txt');
   fs.writeFileSync(script, fc);
-  log('Encoding video + mixing audio');
+  log(`Encoding video + mixing audio (${lines.length} lines, ${tl.sfx.length} effects, ${tl.ambience.length} ambience beds)`);
   await runFfmpeg([
     ...args,
     '-filter_complex_script', script,
     '-map', '0:v',
-    '-map', `[${final}]`,
-    '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p', '-r', String(tl.fps),
-    '-c:a', 'aac', '-b:a', '160k', '-ar', '48000',
+    '-map', '[aout]',
+    '-c:v', 'libx264', '-preset', 'medium', '-tune', 'animation', '-crf', '17', '-pix_fmt', 'yuv420p', '-r', String(tl.fps),
+    '-g', String(tl.fps * 2), '-bf', '2',
+    '-c:a', 'aac', '-b:a', '192k', '-ar', '48000',
     '-movflags', '+faststart',
     '-t', D.toFixed(3),
     outFile,

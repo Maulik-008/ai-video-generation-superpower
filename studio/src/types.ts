@@ -8,9 +8,15 @@ export const SETS = ['skyline-night', 'space-stage', 'cozy-room', 'office-day', 
 export const KINDS = ['human', 'cube', 'blob'] as const;
 export const HAIR_STYLES = ['spiky', 'messy', 'bob', 'bald', 'cap'] as const;
 export const SHOT_TYPES = ['wide', 'two-shot', 'medium', 'close', 'over-shoulder', 'low-angle', 'high-angle', 'insert'] as const;
-export const ENGINES = ['auto', 'edge', 'kokoro', 'chatterbox', 'sapi'] as const;
+export const ENGINES = ['auto', 'edge', 'kokoro', 'chatterbox', 'turbo', 'sapi'] as const;
 export const DELIVERIES = ['natural', 'warm', 'calm'] as const;
-export const MOVES = ['static', 'push-in', 'pull-out', 'drift-left', 'drift-right', 'orbit', 'rise'] as const;
+export const MOVES = ['static', 'push-in', 'pull-out', 'drift-left', 'drift-right', 'orbit', 'rise', 'punch-in'] as const;
+export const TRANSITIONS = ['cut', 'fade', 'dip', 'whip', 'zoom'] as const;
+export const CAPTION_STYLES = ['bold', 'classic', 'none'] as const;
+// Sound effects are synthesised by ffmpeg (no sample files, nothing to license). `auto` placement is described in formats/story.md.
+export const SFX = ['whoosh', 'pop', 'ding', 'boing', 'thud', 'sparkle', 'type', 'swoosh-up'] as const;
+// Non-verbal sounds written inline in a line, e.g. "[laugh] You did what?". Only the `turbo` engine performs them; other engines skip them.
+export const TAGS = ['laugh', 'chuckle', 'sigh', 'gasp', 'cough', 'clear throat', 'sniff', 'groan', 'shush'] as const;
 
 export type Emotion = (typeof EMOTIONS)[number];
 export type Action = (typeof ACTIONS)[number];
@@ -21,6 +27,12 @@ export type ShotType = (typeof SHOT_TYPES)[number];
 export type Move = (typeof MOVES)[number];
 export type Engine = (typeof ENGINES)[number];
 export type Delivery = (typeof DELIVERIES)[number];
+export type Transition = (typeof TRANSITIONS)[number];
+export type CaptionStyle = (typeof CAPTION_STYLES)[number];
+export type Sfx = (typeof SFX)[number];
+
+/** `[laugh]`-style tags removed, for captions and for engines that cannot perform them. */
+export const stripTags = (text: string) => text.replace(/\[[a-z ]{2,20}\]/gi, ' ').replace(/\s{2,}/g, ' ').trim();
 
 const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'use a #rrggbb colour');
 const id = z.string().regex(/^[a-z0-9][a-z0-9-]*$/, 'use lowercase letters, digits and dashes');
@@ -64,6 +76,7 @@ export const LineSchema = z.object({
   text: z.string().min(1).max(240),
   emotion: z.enum(EMOTIONS).default('neutral'),
   action: z.enum(ACTIONS).optional(),
+  sfx: z.enum(SFX).optional(), // a sound effect when the line starts
   pause: z.number().min(0).max(3).default(0.15), // seconds of silence before this line (not used for the first line)
 });
 
@@ -80,6 +93,8 @@ export const ShotSchema = z.object({
     .default({}),
   lines: z.array(LineSchema).default([]),
   duration: z.number().min(0.5).max(20).optional(), // required for shots without lines
+  transition: z.enum(TRANSITIONS).default('cut'), // how this shot comes in from the previous one
+  sfx: z.enum(SFX).optional(), // a sound effect at the start of the shot (in addition to the automatic ones)
   lead: z.number().min(0).max(3).default(0.25), // seconds before the first line
   hold: z.number().min(0).max(5).default(0.35), // seconds after the last line
   reactions: z.record(z.string(), z.enum(EMOTIONS)).default({}), // face for characters who have not spoken yet in this shot
@@ -92,13 +107,20 @@ export const StorySchema = z.object({
   slug: id,
   aspect: z.enum(['vertical', 'square', 'landscape']).default('vertical'),
   resolution: z.enum(['720p', '1080p']).default('720p'),
-  fps: z.literal(30).default(30),
+  fps: z.union([z.literal(30), z.literal(60)]).default(60), // 60 = smooth motion; 30 renders in half the time
   look: z
     .object({
       captions: z
-        .object({ position: z.enum(['top', 'middle', 'bottom']).default('top'), size: z.number().min(0.02).max(0.06).default(0.034) })
+        .object({
+          style: z.enum(CAPTION_STYLES).default('bold'), // bold = big word-by-word captions, the active word highlighted; classic = the older phrase captions
+          position: z.enum(['top', 'middle', 'bottom']).default('top'),
+          size: z.number().min(0.02).max(0.07).optional(), // fraction of frame height; default depends on the style
+        })
         .default({}),
       handheld: z.boolean().default(true),
+      sfx: z.boolean().default(true), // automatic sound effects (whoosh on whip/zoom transitions, pop on titles, boing on jumps, typing on inserts)
+      ambience: z.boolean().default(true), // quiet room tone for each set, so pauses never fall into dead digital silence
+      laptop: z.boolean().default(true), // the laptop prop in front of the cast; false hides it except in insert shots
     })
     .default({}),
   music: z.object({ file: z.string(), volume: z.number().min(0).max(1).default(0.12) }).optional(),
@@ -130,7 +152,8 @@ export type ResolvedCharacter = {
   captionColor: string;
 };
 
-export type TLChunk = { text: string; start: number; end: number }; // absolute frames, end exclusive
+export type TLChunk = { text: string; start: number; end: number; words?: TLWord[] }; // absolute frames, end exclusive
+export type TLWord = { text: string; start: number; end: number }; // absolute frames
 export type TLLine = {
   speaker: string;
   text: string;
@@ -140,7 +163,10 @@ export type TLLine = {
   end: number;
   audio: string; // path relative to the project folder
   chunks: TLChunk[];
+  words: TLWord[];
+  timing: 'whisper' | 'estimate'; // how the word times were found
   envelope: number[]; // mouth openness 0..1, one value per frame starting at `start`
+  shape: number[]; // mouth width 0..1 per frame (0 = round "oo", 1 = wide "ee")
 };
 export type TLShot = {
   id: string;
@@ -148,6 +174,7 @@ export type TLShot = {
   end: number;
   set: SetName;
   camera: { type: ShotType; focus?: string; move: Move };
+  transition: Transition;
   cast: string[];
   reactions: Record<string, Emotion>;
   lines: TLLine[];
@@ -161,9 +188,11 @@ export type Timeline = {
   height: number;
   fps: number;
   frames: number;
-  look: { captionPosition: 'top' | 'middle' | 'bottom'; captionSize: number; handheld: boolean };
+  look: { captionStyle: CaptionStyle; captionPosition: 'top' | 'middle' | 'bottom'; captionSize: number; handheld: boolean; laptop?: boolean };
   characters: ResolvedCharacter[];
   shots: TLShot[];
   music?: { src: string; volume: number };
+  sfx: { name: Sfx; frame: number; gain: number }[];
+  ambience: { set: SetName; start: number; end: number }[];
   voices?: Record<string, { engine: string; delivery: string; requested: string; note?: string }>;
 };

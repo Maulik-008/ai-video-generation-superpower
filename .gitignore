@@ -12,3 +12,4 @@ studio/.studio-setup.json
 studio/.studio-setup.answers.json
 studio/.browsers/
 studio/output/
+__pycache__/

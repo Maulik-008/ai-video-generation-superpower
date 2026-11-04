@@ -513,3 +513,31 @@ Measured from the session transcript since the previous addendum: 42 API calls a
 ### Limits
 
 Tested on Windows 11 with npm. The pnpm and yarn paths, macOS and Linux are coded but not tested. The wizard never installs Node, Python, Chrome or drivers for you: it tells you how, and you decide.
+
+
+---
+
+## 13. Addendum: smoother voices, smoother motion, and a review loop
+
+### What you asked
+
+Make the voices and animation smoother and more engaging, research the "14 repos for better AI videos" list (HyperFrames, Chatterbox, faster-whisper, GSAP, Remotion, Blender, FFmpeg, Chrome DevTools MCP, Impeccable, ComfyUI, yt-dlp...), add skills and agents, build a complete workflow, and test it live. Chatterbox Turbo was to be an option only, not downloaded.
+
+### What was built
+
+The research and per-tool verdicts are in [TOOLING_RESEARCH.md](TOOLING_RESEARCH.md); the flow and live test are in [WORKFLOW.md](WORKFLOW.md). In short:
+- **Motion:** 60 fps; every character motion is precomputed per frame (springs for expressions and head turns, a speech-energy curve for gestures, irregular blinks, eye darts, a mouth-width track); eased actions; a `punch-in` move; `fade` / `dip` / `whip` / `zoom` transitions composited in GLSL from the finished frames (so the look outside transitions is unchanged); a tighter vertical two-shot; `look.laptop`.
+- **Captions:** bold word-by-word captions timed by Whisper word timestamps (`voice/align_words.py`), with an audio-based fallback.
+- **Sound:** per-line levelling and de-click, ffmpeg-synthesised sound effects and room tone, a limiter.
+- **Voices:** opt-in Chatterbox Turbo (`turbo`, with `[laugh]`-style tags) in the engines, setup wizard, setup skill and health check; recommended Edge Multilingual voices; the speech check now spells out numbers and no longer uses difflib's autojunk on long texts.
+- **Checking:** `npm run qa` (runs after every build); the new `video-critic` agent and the shared `references/quality.md` rubric; the director runs one polish round.
+
+### Bugs found by testing (all fixed)
+
+1. The Whisper aligner hung: its stderr was piped but never read, and its progress bars filled the pipe.
+2. An ffmpeg `tremolo` rate below its 0.1 Hz minimum broke one ambience bed. Sound design now can never fail a build.
+3. Chatterbox rejected "One percent" because Whisper wrote "1%". The check now spells numbers out.
+4. The QA transcript score was 73% for a correct mix: difflib's autojunk skews strings over 200 characters. Fixed: 97%.
+5. The limiter's auto-level pushed the true peak to -0.4 dBTP. Fixed: -1.4.
+6. Windows refused to delete an open `stills/` folder. Output folders are now emptied instead.
+7. The swelling highlighted caption word overlapped the next word. Fixed with margins.

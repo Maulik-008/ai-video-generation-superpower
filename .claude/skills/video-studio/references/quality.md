@@ -1,0 +1,56 @@
+# Quality bar: what makes a video people watch to the end
+
+One rubric, used at three moments: the **director** writes to it, the **video-producer** checks the technical half after every build, and the **video-critic** scores the finished video against all of it. Each item says what to look for and the cheapest fix in `story.json`.
+
+The engine already does the following by default, so nobody has to ask for it: 60 fps, bold word-by-word captions timed by Whisper, voices levelled to one loudness, a room tone for every set, automatic sound effects, springy expressions, gestures that follow the speech, and irregular blinks and eye darts.
+
+## A. Engagement (the first 3 seconds decide everything)
+
+| # | Check | Pass when | Fix |
+|---|---|---|---|
+| A1 | **Hook** | Words start by 1.5 s (QA warns after 2.2 s), and the first line is a problem, a shock, a question or a weird claim | Drop the title card, or cut the opening shot's `duration`/`lead`; move the strongest line first |
+| A2 | **Pattern interrupt every 2 to 4 s** | Something changes at least every 4 s: a cut, a `punch-in`, an `action`, a sound effect, a new character | Split long shots; add `"move": "punch-in"` on the beat after a reveal |
+| A3 | **Escalation** | Each exchange raises the stakes or adds a twist; no line repeats information | Director rewrites (creative: ask the user if the script was theirs) |
+| A4 | **Payoff** | The last line is the best line, on a `close`, and the video ends within 1 s of it | Move the punchline last; `hold` ≤ 0.8 s; no recap after it |
+| A5 | **Length** | 20 to 45 s for vertical shorts | Cut the weakest exchange |
+| A6 | **Distinct voices** | You can tell who speaks with your eyes closed | Different voices; for Edge push `rate`/`pitch` apart; for Chatterbox raise `expressiveness` on the comic character |
+| A7 | **Faces react** | The listener's face shows a feeling before they answer | `reactions` on the shot; an `emotion` on every line |
+
+## B. Motion and picture
+
+| # | Check | Pass when | Fix |
+|---|---|---|---|
+| B1 | **Framing** | Every `close`/`medium` shows the focus character's face fully, roughly facing the camera | `close` → `medium`, change `focus`, or lower the character's `scale` |
+| B2 | **Nothing blocks a face** | Props (laptop, table, lamp) never cover eyes or mouth | `"look": { "laptop": false }` when the story has no use for it, or change the camera type |
+| B3 | **Camera language** | Never the same framing 3 times in a row; `wide` only to open, re-establish or end | Alternate two-shot, close, over-shoulder |
+| B4 | **Transitions are rare and meaningful** | Hard cuts inside a scene. `whip` or `zoom` for a jump in place or time, `fade` for an emotional beat, `dip` for "later". At most 3 or 4 per video | Remove extras; put `whip` on the shot that changes `set` |
+| B5 | **No dead picture** | QA reports no black or frozen stretch longer than 1.6 s | Give long shots a move (`push-in`, `drift-*`, `orbit`), or split them |
+| B6 | **Smoothness** | `fps` 60 (default). 30 only when the user wants faster renders | Remove `"fps": 30` |
+
+## C. Captions
+
+| # | Check | Pass when | Fix |
+|---|---|---|---|
+| C1 | **Readable** | Bold captions over a calm area, never on the eyes | `look.captions.position` `top` (default) / `middle` / `bottom` |
+| C2 | **In sync** | QA says Whisper timed every line (an `info` line counts the estimated ones) | Estimated timing is still usable. Install the Chatterbox environment for exact timing |
+| C3 | **Short groups** | No caption group wraps to three lines | Shorten words, or split the line |
+| C4 | **No emoji, no tags shown** | `[laugh]`-style tags never appear in captions (the engine strips them) | None needed |
+
+## D. Sound
+
+| # | Check | Pass when | Fix |
+|---|---|---|---|
+| D1 | **Loudness** | About -16 LUFS (QA accepts -19 to -13), true peak below -0.5 dBTP | Automatic. If not, report it |
+| D2 | **Speech is right** | QA `--listen` match ≥ 0.85 in English, ≥ 0.7 in other languages | Find the line that differs; change that character's engine or voice |
+| D3 | **Delivery fits** | Comedy `natural`; gentle `warm`; heartfelt, apology, bedtime `calm` | Set `voice.delivery` |
+| D4 | **Effects support, never decorate** | At most one effect per 3 s; the automatic ones (whoosh on whip/zoom, pop on titles, boing on jumps, typing on inserts) plus 1 or 2 chosen ones | Remove `sfx`, or `look.sfx: false` for a quiet piece |
+| D5 | **Non-verbal sounds** | `[laugh]`, `[sigh]`, `[chuckle]` only where a person would really do it, at most one per character per video | Only the `turbo` engine performs them; elsewhere they are skipped silently |
+| D6 | **No dead air** | Pauses never fall into digital silence (the room tone covers them) | Keep `look.ambience` on |
+
+## Severity, for the critic
+
+- **must-fix**: breaks the video. A face hidden or cut off, unreadable or wrong captions, wrong speech, a black or frozen stretch, the hook after 3 s.
+- **should-fix**: costs viewers. A weak hook, a flat stretch longer than 4 s with no change, voices too alike, a transition that jars, the payoff buried.
+- **polish**: nice to have. A better move, an effect, a reaction.
+
+Technical fixes (camera, transitions, sound effects, timing, captions, laptop, fps) never change the story, so they can be made without asking. Changes to words, characters or plot are creative: the director proposes them to the user.

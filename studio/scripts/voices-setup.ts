@@ -1,6 +1,8 @@
 // One-time (and repeatable) setup of the local voice engines. Safe to re-run: every step checks before it does anything.
 //   npm run voices:setup                       Kokoro + Chatterbox
 //   npm run voices:setup -- --only kokoro      just one
+//   npm run voices:setup -- --only turbo       optional: Chatterbox Turbo (English, performs [laugh] / [sigh] tags), about 4 GB more.
+//                                              Never part of the default set; it needs the Chatterbox environment first.
 // Downloads: Kokoro about 0.35 GB. Chatterbox about 2.5 GB (PyTorch for the GPU) + 3.3 GB (model) + 1 GB (Whisper speech check), into git-ignored folders.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -114,9 +116,20 @@ async function setupChatterbox() {
   if (String(result.info?.verify ?? '').startsWith('unavailable')) console.log('  note: Chatterbox will still work, but without the speech check (less reliable on very short lines).');
 }
 
+async function setupTurbo() {
+  if (!fs.existsSync(venvPython('chatterbox')) || !canImport('chatterbox', 'chatterbox.tts_turbo')) {
+    throw new Error('Turbo runs in the Chatterbox environment: install Chatterbox first (npm run voices:setup -- --only chatterbox)');
+  }
+  step('Chatterbox Turbo model weights (about 4 GB, one time)');
+  const { runWorker } = await import('./lib/voices/engines.ts');
+  const { result } = await runWorker('turbo', [], (m) => console.log(m));
+  if (!result.ok) throw new Error(result.error ?? 'could not load the Turbo model');
+  console.log(`  Turbo ready on ${result.info?.device}${result.info?.gpu ? ` (${result.info.gpu})` : ''}`);
+}
+
 const failures: string[] = [];
-for (const [name, fn] of [['kokoro', setupKokoro], ['chatterbox', setupChatterbox]] as const) {
-  if (only !== 'all' && only !== name) continue;
+for (const [name, fn] of [['kokoro', setupKokoro], ['chatterbox', setupChatterbox], ['turbo', setupTurbo]] as const) {
+  if (name === 'turbo' ? only !== 'turbo' : only !== 'all' && only !== name) continue; // Turbo only when asked for by name
   try {
     await fn();
   } catch (e) {

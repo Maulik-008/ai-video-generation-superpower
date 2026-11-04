@@ -1,7 +1,7 @@
 ---
 name: setup-video-studio
 description: First-time setup of the video studio for a developer who just cloned this repo. Detects the machine (Node, ffmpeg, Chrome/Edge, Python, NVIDIA GPU, disk), asks the developer every choice as multiple-choice (packages, ffmpeg, browser, local voice engines Kokoro and Chatterbox, where models live, where videos are saved, how much to verify), shows a plan with download sizes, and only then installs exactly what was chosen. Nothing is downloaded or installed without an explicit yes. Use when the user says "/setup-video-studio", "set up", "install", "first time setup", "get started with this repo", "install the voices", "download Kokoro or Chatterbox", "change my setup", "remove the voice models", or when /video-studio fails because studio/node_modules, Chrome, ffmpeg or a voice engine is missing.
-argument-hint: [status | change | remove <kokoro|chatterbox|voice-models|all-voices|browser|deps|config>]
+argument-hint: [status | change | remove <kokoro|chatterbox|turbo|voice-models|all-voices|browser|deps|config>]
 ---
 
 # Setup: the first-run guide
@@ -40,6 +40,7 @@ Use `AskUserQuestion`. At most 4 questions per call, 2 to 4 options each, a shor
 | Header | Question | Options |
 |---|---|---|
 | Local voices | Install local voice engines (better quality, work offline)? | *Kokoro + Chatterbox* (about 6 GB download, 9 GB on disk; needs an NVIDIA GPU for Chatterbox and Python) · *Kokoro only (about 350 MB, no GPU needed)* · *Chatterbox only (about 5.8 GB, NVIDIA GPU)* · *None, use the Edge voices only*. Mark the best fit for this machine "(Recommended)": with no GPU that is Kokoro only; with a GPU and plenty of disk it is Kokoro + Chatterbox. Warn plainly if there is no NVIDIA GPU and they pick Chatterbox |
+| Turbo voice | Also add Chatterbox Turbo (about 4 GB more)? Only ask when Chatterbox is chosen or already installed | *No, not now (Recommended)*: it can be added any time with `npm run voices:setup -- --only turbo` · *Yes*: English only, the most natural voice, and it performs `[laugh]` / `[sigh]` / `[chuckle]` in scripts. Writes `voices.turbo: true` |
 | Speech check | Add the speech check for Chatterbox (a Whisper model, about 1 GB)? | *Yes (Recommended)*: it listens to each generated line and retries bad takes · *No, skip the 1 GB download*: less reliable on very short lines (only ask if Chatterbox was chosen) |
 | Storage | Where should the voice models and Python environments live? | *Inside the repo, `studio/` (git-ignored) (Recommended)* · *A folder I choose, such as another drive (Other)* (only if a local engine was chosen; mention the free space from `disk`) |
 | Python | Which Python should the voice engines use? | One option per supported Python from `pythons` (3.11 first, "(Recommended)") · *A Python at a path I give (Other)* · *Skip the local voices, I will install Python later* (only if a local engine was chosen; if none is supported, offer the install hint for their OS and *Skip*) |

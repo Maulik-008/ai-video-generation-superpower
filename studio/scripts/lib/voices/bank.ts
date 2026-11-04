@@ -4,7 +4,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import type { Delivery, Emotion, Story } from '../../../src/types.ts';
+import { stripTags, type Delivery, type Emotion, type Story } from '../../../src/types.ts';
 import { CACHE_DIR } from '../paths.ts';
 import { encodeWav, parseWav, trimSilence, type Pcm } from '../wav.ts';
 import { checkClip, ensure24k, joinPcm, limitPeak, masterPcm } from './audio.ts';
@@ -12,10 +12,11 @@ import { ENGINE_IMPL, engineState, readStatus, verifyEnabled, type EngineName, t
 import { anchorTextFor, CHATTERBOX_LANGS, chatterboxParams, DELIVERY, edgeProsody, kokoroCandidates, kokoroLang, kokoroSpeed, languageOf, splitSentences, type Voice } from './presets.ts';
 
 const CACHE_VERSION = 'v5';
+const ANCHOR_SECONDS: Record<string, number> = { turbo: 5.6 }; // Turbo refuses voice prompts of 5 seconds or less
 const VOICE_CACHE = path.join(CACHE_DIR, 'voices');
 const ANCHOR_CACHE = path.join(CACHE_DIR, 'anchors');
-const AUTO: EngineName[] = ['chatterbox', 'kokoro', 'edge', 'sapi'];
-const FALLBACK: Record<EngineName, EngineName[]> = { edge: ['sapi'], sapi: ['edge'], kokoro: ['edge', 'sapi'], chatterbox: ['kokoro', 'edge', 'sapi'] };
+const AUTO: EngineName[] = ['turbo', 'chatterbox', 'kokoro', 'edge', 'sapi'];
+const FALLBACK: Record<EngineName, EngineName[]> = { edge: ['sapi'], sapi: ['edge'], kokoro: ['edge', 'sapi'], chatterbox: ['kokoro', 'edge', 'sapi'], turbo: ['chatterbox', 'kokoro', 'edge', 'sapi'] };
 
 export type VoiceBank = {
   get(shot: number, line: number): Pcm;
@@ -33,6 +34,7 @@ const seedOf = (s: string) => parseInt(sha(s).slice(0, 8), 16) % 2147483647;
 function supports(engine: EngineName, lang: string): boolean {
   if (engine === 'kokoro') return kokoroLang({ language: lang, edge: `${lang}-XX`, gender: 'male' } as Voice) !== undefined;
   if (engine === 'chatterbox') return CHATTERBOX_LANGS.includes(lang);
+  if (engine === 'turbo') return lang === 'en';
   if (engine === 'sapi') return lang === 'en';
   return true;
 }
@@ -57,15 +59,21 @@ function buildChain(requested: string, lang: string, notes: string[]): EngineNam
   return out;
 }
 
-const planSentences = (engine: EngineName, text: string, delivery: Delivery) => (engine !== 'kokoro' && DELIVERY[delivery].split ? splitSentences(text) : [text]);
+/** What an engine is actually asked to say: only Turbo can perform `[laugh]`-style tags, every other engine gets them removed. */
+const spoken = (engine: EngineName, text: string) => (engine === 'turbo' ? text : stripTags(text));
+const planSentences = (engine: EngineName, text: string, delivery: Delivery) => {
+  const t = spoken(engine, text);
+  return engine !== 'kokoro' && DELIVERY[delivery].split ? splitSentences(t) : [t];
+};
 
 function signature(engine: EngineName, p: Plan, text: string, emotion: Emotion, anchorKey: string, seed: number): string {
   const v = p.voice;
   const em = DELIVERY[p.delivery].emotionAware ? emotion : 'neutral';
-  const base = { engine, text, parts: planSentences(engine, text, p.delivery), delivery: p.delivery, v: CACHE_VERSION };
+  const base = { engine, text: spoken(engine, text), parts: planSentences(engine, text, p.delivery), delivery: p.delivery, v: CACHE_VERSION };
   if (engine === 'edge') return JSON.stringify({ ...base, ...edgeProsody(v, p.delivery, emotion), voice: v.edge });
   if (engine === 'sapi') return JSON.stringify({ ...base, gender: v.gender, rate: edgeProsody(v, p.delivery, emotion).rate });
   if (engine === 'kokoro') return JSON.stringify({ ...base, voice: v.kokoro, lang: kokoroLang(v), speed: kokoroSpeed(p.delivery, emotion), pause: DELIVERY[p.delivery].pause });
+  if (engine === 'turbo') return JSON.stringify({ ...base, ...chatterboxParams(v, p.delivery, em), anchor: anchorKey, seed, verified: verifyEnabled() });
   return JSON.stringify({ ...base, lang: languageOf(v), ...chatterboxParams(v, p.delivery, em), anchor: anchorKey, seed, verified: verifyEnabled() });
 }
 
@@ -81,7 +89,7 @@ async function assemble(parts: Pcm[], delivery: Delivery): Promise<Pcm> {
 function readCache(file: string, text: string): Pcm | null {
   try {
     const pcm = parseWav(fs.readFileSync(file));
-    return checkClip(pcm, text, 8) === null ? pcm : null;
+    return checkClip(pcm, stripTags(text), 8) === null ? pcm : null;
   } catch {
     return null;
   }
@@ -124,9 +132,10 @@ export async function prepareVoices(story: Story, opts: { provider: string; deli
   const stats = { cached: 0, made: 0 };
 
   // anchors: a short reference clip per character so Chatterbox voices sound different from each other
-  async function anchorFor(p: Plan): Promise<{ file?: string; key: string }> {
+  async function anchorFor(p: Plan, engine: EngineName): Promise<{ file?: string; key: string }> {
     const lang = languageOf(p.voice);
-    const text = anchorTextFor(lang);
+    const minSeconds = ANCHOR_SECONDS[engine] ?? 4;
+    const text = minSeconds > 4 ? `${anchorTextFor(lang)} ${anchorTextFor(lang)}` : anchorTextFor(lang);
     const src = (['kokoro', 'edge'] as EngineName[]).find((e) => supports(e, lang) && engineState(e).state !== 'missing') ?? 'edge';
     const key = sha(`anchor|${CACHE_VERSION}|${src}|${src === 'kokoro' ? p.voice.kokoro : p.voice.edge}|${p.voice.gender}|${lang}|${text}`);
     const file = path.join(ANCHOR_CACHE, `${key}.wav`);
@@ -136,7 +145,7 @@ export async function prepareVoices(story: Story, opts: { provider: string; deli
       const res = (await ENGINE_IMPL[src].synth([task], log)).get('anchor');
       if (!res || res instanceof Error) throw res ?? new Error('no result');
       const pcm = trimSilence(await assemble(res, 'natural'));
-      if (pcm.samples.length / pcm.sampleRate < 4) throw new Error('anchor clip too short');
+      if (pcm.samples.length / pcm.sampleRate < minSeconds) throw new Error('anchor clip too short');
       fs.writeFileSync(file, encodeWav(pcm));
       return { file, key };
     } catch (e) {
@@ -151,7 +160,7 @@ export async function prepareVoices(story: Story, opts: { provider: string; deli
     const work: Work[] = [];
     const have = new Map<string, Pcm>();
     for (const p of group) {
-      const anchor = engine === 'chatterbox' ? await anchorFor(p) : { key: '' as string, file: undefined };
+      const anchor = engine === 'chatterbox' || engine === 'turbo' ? await anchorFor(p, engine) : { key: '' as string, file: undefined };
       for (const line of lines.filter((l) => l.charId === p.char.id)) {
         const seed = seedOf(`${p.char.id}|${line.text}`);
         const sig = signature(engine, p, line.text, line.emotion, anchor.key, seed);
@@ -168,7 +177,8 @@ export async function prepareVoices(story: Story, opts: { provider: string; deli
       const state = engineState(engine);
       log(`  ${engine}: making ${work.length} line(s) for ${[...new Set(work.map((w) => w.p.char.id))].join(', ')}${state.state === 'unchecked' ? ' (engine not health-checked)' : ''}`);
       let todo = work;
-      for (let attempt = 0; attempt < (engine === 'chatterbox' ? 2 : 1) && todo.length; attempt++) {
+      const local = engine === 'chatterbox' || engine === 'turbo';
+      for (let attempt = 0; attempt < (local ? 2 : 1) && todo.length; attempt++) {
         const tasks: Task[] = todo.map((w) => ({ key: w.line.key + '@' + w.p.char.id, sentences: w.sentences, voice: w.p.voice, emotion: w.line.emotion, delivery: w.p.delivery, seed: w.seed + attempt * 7919, anchor: w.anchor }));
         const results = await ENGINE_IMPL[engine].synth(tasks, log);
         const retry: Work[] = [];
@@ -179,7 +189,7 @@ export async function prepareVoices(story: Story, opts: { provider: string; deli
           else {
             try {
               const pcm = await assemble(r, w.p.delivery);
-              why = checkClip(pcm, w.line.text, (w.sentences.length - 1) * DELIVERY[w.p.delivery].pause + 1);
+              why = checkClip(pcm, stripTags(w.line.text), (w.sentences.length - 1) * DELIVERY[w.p.delivery].pause + 1 + (engine === 'turbo' ? 2 : 0));
               if (!why) {
                 fs.writeFileSync(w.file, encodeWav(pcm));
                 made.set(`${w.p.char.id}|${w.line.key}`, pcm);
@@ -189,7 +199,7 @@ export async function prepareVoices(story: Story, opts: { provider: string; deli
             }
           }
           if (why) {
-            if (attempt === 0 && engine === 'chatterbox' && !(results.get(w.line.key + '@' + w.p.char.id) instanceof Error)) retry.push(w);
+            if (attempt === 0 && local && !(results.get(w.line.key + '@' + w.p.char.id) instanceof Error)) retry.push(w);
             else failed.set(w.p.char.id, `line "${w.line.text.slice(0, 40)}": ${why}`);
           }
         }

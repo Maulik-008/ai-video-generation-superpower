@@ -22,6 +22,7 @@ export function validateOrExit(project: Project) {
 /** validate -> voices -> timeline.json */
 export async function makeTimeline(project: Project, cli: Cli): Promise<Timeline> {
   const story = validateOrExit(project);
+  if (cli.fps) story.fps = cli.fps;
   log(`Voices for "${story.title}" (engine: ${cli.provider === 'auto' ? 'as set in the story' : cli.provider}${cli.delivery ? `, delivery: ${cli.delivery}` : ''})`);
   const bank = await prepareVoices(story, { provider: cli.provider, delivery: cli.delivery }, log);
   const timeline = await buildTimeline(story, project.dir, bank, cli.res ?? story.resolution, log);
