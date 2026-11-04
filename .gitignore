@@ -13,3 +13,6 @@ studio/.studio-setup.answers.json
 studio/.browsers/
 studio/output/
 __pycache__/
+studio/explainer/projects/*
+!studio/explainer/projects/.gitkeep
+studio/editor/**/*_edit/

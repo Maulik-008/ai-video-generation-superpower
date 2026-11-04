@@ -1,0 +1,30 @@
+{
+  "types": [
+    {"id": "story", "title": "Animated story", "engine": "studio",
+     "about": "Characters that talk with lip-sync, camera cuts, captions and free voices, rendered in code (soft clay-toy look, 60 fps, 720x1280)."},
+    {"id": "explainer", "title": "Explainer short", "engine": "explainer",
+     "about": "A narrated vertical short from a topic, in one of six styles (1080x1920, 25-60 s)."},
+    {"id": "editor", "title": "Edit my recording", "engine": "editor",
+     "about": "Cuts silences and mistakes from your own 16:9 talking-head video and adds motion graphics in one of 7 styles."},
+    {"id": "reel", "title": "Cinematic AI reel", "engine": "browser",
+     "about": "Photoreal Pixar-style story reels made with your own Gemini + Google Flow (Veo) account, stitched locally. Uses generation credits."}
+  ],
+  "samples": [
+    {"type": "story", "id": "example-small-change", "title": "Just One Small Change", "style": "skyline-night, English comedy", "topic": "A developer asks for one tiny change.", "dir": "story/example-small-change", "video": "example-small-change.mp4", "source": "story.json"},
+    {"type": "story", "id": "the-3am-deploy", "title": "The 3 A.M. Deploy", "style": "skyline-night, English", "topic": "A late-night production deploy.", "dir": "story/the-3am-deploy", "video": "the-3am-deploy.mp4", "source": "story.json"},
+    {"type": "story", "id": "battery-low", "title": "Battery Low", "style": "cozy-room and sunny-park, English", "topic": "A phone battery story.", "dir": "story/battery-low", "video": "battery-low.mp4", "source": "story.json"},
+    {"type": "story", "id": "hindi-chai", "title": "रात के दो बजे", "style": "cozy-room, Hindi voices", "topic": "A short Hindi night-time scene.", "dir": "story/hindi-chai", "video": "hindi-chai.mp4", "source": "story.json"},
+    {"type": "story", "id": "power-cut-pov", "title": "POV: power cut at home", "style": "cozy-room, English", "topic": "A POV story about a power cut.", "dir": "story/power-cut-pov", "video": "power-cut-pov.mp4", "source": "story.json"},
+
+    {"type": "explainer", "id": "inside-out", "title": "What if you swallow gum?", "style": "inside-out (flat 2D x-ray)", "topic": "Body and science what-if", "dir": "explainer/inside-out", "video": "inside-out.mp4", "sheet": "contact-sheet.jpg", "source": "script.json"},
+    {"type": "explainer", "id": "deep-dive", "title": "What happens if you hold your breath?", "style": "deep-dive (3D, x-ray bodies)", "topic": "Body and science what-if", "dir": "explainer/deep-dive", "video": "deep-dive.mp4", "sheet": "contact-sheet.jpg", "source": "script.json"},
+    {"type": "explainer", "id": "night-file", "title": "The man who jumped out of a plane", "style": "night-file (dark 3D mystery)", "topic": "True crime: D.B. Cooper", "dir": "explainer/night-file", "video": "night-file.mp4", "sheet": "contact-sheet.jpg", "source": "script.json"},
+    {"type": "explainer", "id": "stick-story", "title": "What if the power went out for 3 days?", "style": "stick-story (stick figures, step cards)", "topic": "Survival steps", "dir": "explainer/stick-story", "video": "stick-story.mp4", "sheet": "contact-sheet.jpg", "source": "script.json"},
+    {"type": "explainer", "id": "paper-atlas", "title": "How one bakery burned down London", "style": "paper-atlas (cut paper maps)", "topic": "History", "dir": "explainer/paper-atlas", "video": "paper-atlas.mp4", "sheet": "contact-sheet.jpg", "source": "script.json"},
+    {"type": "explainer", "id": "tall-tale", "title": "The girl who was mailed to grandma", "style": "tall-tale (2D cartoon people, 3D town)", "topic": "Funny true story", "dir": "explainer/tall-tale", "video": "tall-tale.mp4", "sheet": "contact-sheet.jpg", "source": "script.json"},
+
+    {"type": "reel", "id": "tamatar-superstar", "title": "Tamatar Superstar, part 1", "style": "kahani (Pixar-style vegetable drama, Hindi)", "topic": "Multi-scene story reel made with Veo through the browser engine", "dir": "reel/tamatar-superstar", "video": "tamatar-superstar-part1.mp4", "source": "plan.json", "note": "Made with a personal Google account and Flow credits."},
+
+    {"type": "editor", "id": "pending", "title": "Before / after of a real talking-head edit", "style": "any of the 7 styles", "topic": "Needs a 16:9 talking-head recording and the Whisper model (small.en about 0.5 GB, Hindi large-v3-turbo about 1.6 GB). Not generated yet.", "dir": "editor", "pending": true}
+  ]
+}

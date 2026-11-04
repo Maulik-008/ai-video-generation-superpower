@@ -12,6 +12,8 @@ video-producer (agent):  voices ─► word timing ─► 60 fps 3D render ─�
 video-critic (agent):    contact sheet + frames at every cut ─► ranked fixes ─► one polish round
 ```
 
+**Four video types, one entry point.** `/video-studio` first asks what you want to make and offers to show finished sample videos of every type: an **animated story** with talking characters (`studio` engine), a narrated **explainer short** from a topic in one of six styles (`explainer` engine), an **edit of your own recording** with cuts and motion graphics (`editor` engine), or a **cinematic AI reel** through your own Gemini/Flow account (`browser` engine). Watch them first: open [samples/index.html](samples/index.html) (list in [samples/README.md](samples/README.md)). Details of each type: [docs/SKILL_TYPES.md](docs/SKILL_TYPES.md).
+
 A 30-second vertical video renders in about 40 seconds on a machine with a GPU, plus the time to make any new voices. The whole flow, with a live test, is in [docs/WORKFLOW.md](docs/WORKFLOW.md).
 
 ---
@@ -53,7 +55,12 @@ Tested on Windows 11 with an NVIDIA GPU. The macOS and Linux paths are coded but
 /video-studio <paste a script or an article>
 ```
 
-Say "surprise me" to skip the questions. Options: `--length 20|35|60`, `--res 720p|1080p`, `--provider auto|edge|sapi`, `--engine studio|browser`.
+Say "show me samples" to see every video type first, or "surprise me" to skip the questions. Options: `--type story|explainer|edit|reel`, `--length 20|35|60`, `--res 720p|1080p`, `--provider auto|edge|sapi`.
+
+```
+/video-studio what happens if you swallow gum?                 (explainer short)
+/video-studio edit my video D:\clips\intro.mp4                  (editor)
+```
 
 **Without Claude.** Build one of the included stories, or your own:
 

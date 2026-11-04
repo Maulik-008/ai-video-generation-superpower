@@ -1,0 +1,177 @@
+{
+  "title": "Just One Small Change",
+  "slug": "example-small-change",
+  "aspect": "vertical",
+  "resolution": "720p",
+  "characters": [
+    {
+      "id": "dev",
+      "name": "Dev",
+      "kind": "human",
+      "pose": "sit",
+      "look": {
+        "hairStyle": "spiky",
+        "outfit": "#3b4cc0"
+      },
+      "voice": {
+        "edge": "en-US-GuyNeural",
+        "gender": "male",
+        "rate": "+4%"
+      },
+      "captionColor": "#ffffff"
+    },
+    {
+      "id": "bolt",
+      "name": "Bolt",
+      "kind": "cube",
+      "look": {
+        "body": "#ff7a45",
+        "accent": "#ffb36b"
+      },
+      "voice": {
+        "edge": "en-US-AnaNeural",
+        "gender": "female",
+        "rate": "-4%",
+        "pitch": "-6Hz"
+      },
+      "captionColor": "#ffb066"
+    }
+  ],
+  "shots": [
+    {
+      "id": "s00",
+      "set": "skyline-night",
+      "camera": {
+        "type": "wide",
+        "move": "pull-out"
+      },
+      "duration": 2.2,
+      "overlay": "Just One Small Change",
+      "reactions": {
+        "dev": "neutral",
+        "bolt": "neutral"
+      }
+    },
+    {
+      "id": "s01",
+      "camera": {
+        "type": "two-shot",
+        "move": "push-in"
+      },
+      "reactions": {
+        "dev": "worried",
+        "bolt": "neutral"
+      },
+      "lines": [
+        {
+          "speaker": "dev",
+          "text": "Hey Bolt. Tiny favour. Just one small change.",
+          "emotion": "worried",
+          "action": "lean-in"
+        }
+      ]
+    },
+    {
+      "id": "s02",
+      "camera": {
+        "type": "close",
+        "focus": "bolt",
+        "move": "push-in"
+      },
+      "lines": [
+        {
+          "speaker": "bolt",
+          "text": "That is exactly what you said at nine this morning.",
+          "emotion": "smug"
+        }
+      ]
+    },
+    {
+      "id": "s03",
+      "camera": {
+        "type": "over-shoulder",
+        "focus": "dev",
+        "move": "drift-left"
+      },
+      "lines": [
+        {
+          "speaker": "dev",
+          "text": "It is literally one button.",
+          "emotion": "excited",
+          "action": "shrug"
+        }
+      ]
+    },
+    {
+      "id": "s04",
+      "camera": {
+        "type": "medium",
+        "focus": "bolt",
+        "move": "static"
+      },
+      "reactions": {
+        "dev": "worried"
+      },
+      "lines": [
+        {
+          "speaker": "bolt",
+          "text": "The button is connected to forty one other buttons.",
+          "emotion": "worried",
+          "action": "shake"
+        }
+      ]
+    },
+    {
+      "id": "s05",
+      "camera": {
+        "type": "close",
+        "focus": "dev",
+        "move": "push-in"
+      },
+      "lines": [
+        {
+          "speaker": "dev",
+          "text": "...Forty one?",
+          "emotion": "surprised"
+        }
+      ]
+    },
+    {
+      "id": "s06",
+      "camera": {
+        "type": "two-shot",
+        "move": "pull-out"
+      },
+      "lines": [
+        {
+          "speaker": "bolt",
+          "text": "I will make coffee. You make peace with that.",
+          "emotion": "smug",
+          "action": "nod"
+        },
+        {
+          "speaker": "dev",
+          "text": "Fine. Ship it.",
+          "emotion": "tired",
+          "action": "slump"
+        }
+      ]
+    },
+    {
+      "id": "s07",
+      "camera": {
+        "type": "close",
+        "focus": "bolt",
+        "move": "rise"
+      },
+      "lines": [
+        {
+          "speaker": "bolt",
+          "text": "Shipped. Please never open the laptop again.",
+          "emotion": "happy",
+          "action": "jump"
+        }
+      ]
+    }
+  ]
+}

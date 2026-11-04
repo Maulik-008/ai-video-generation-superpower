@@ -1,0 +1,39 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Video samples</title>
+<style>:root{--bg:#f6f4ef;--fg:#1b1b1f;--card:#fff;--mute:#6b6b73;--line:#ddd}
+@media(prefers-color-scheme:dark){:root{--bg:#141418;--fg:#f1f1f3;--card:#1e1e24;--mute:#9a9aa5;--line:#34343c}}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,sans-serif}
+main{max-width:1180px;margin:0 auto;padding:24px 16px}h1{margin:0 0 4px}h2{margin:36px 0 2px}
+p.s{color:var(--mute);margin:0 0 14px}
+.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+.c{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+video{display:block;width:100%;aspect-ratio:9/16;background:#000;object-fit:contain}
+.t{padding:10px 12px}.t b{display:block}.t span{color:var(--mute);font-size:13px;display:block}
+.p{padding:14px 12px;color:var(--mute);font-size:13px}</style></head><body><main>
+<h1>Video samples</h1><p class="s">One section per video type. Press play on any card.</p>
+<h2>Animated story <small>(studio)</small></h2>
+<p class="s">Characters that talk with lip-sync, camera cuts, captions and free voices, rendered in code (soft clay-toy look, 60 fps, 720x1280).</p><div class="g">
+<div class="c"><video controls preload="none" poster="story/example-small-change/poster.jpg" src="story/example-small-change/example-small-change.mp4"></video><div class="t"><b>Just One Small Change</b><span>skyline-night, English comedy</span><span>A developer asks for one tiny change.</span></div></div>
+<div class="c"><video controls preload="none" poster="story/the-3am-deploy/poster.jpg" src="story/the-3am-deploy/the-3am-deploy.mp4"></video><div class="t"><b>The 3 A.M. Deploy</b><span>skyline-night, English</span><span>A late-night production deploy.</span></div></div>
+<div class="c"><video controls preload="none" poster="story/battery-low/poster.jpg" src="story/battery-low/battery-low.mp4"></video><div class="t"><b>Battery Low</b><span>cozy-room and sunny-park, English</span><span>A phone battery story.</span></div></div>
+<div class="c"><video controls preload="none" poster="story/hindi-chai/poster.jpg" src="story/hindi-chai/hindi-chai.mp4"></video><div class="t"><b>रात के दो बजे</b><span>cozy-room, Hindi voices</span><span>A short Hindi night-time scene.</span></div></div>
+<div class="c"><video controls preload="none" poster="story/power-cut-pov/poster.jpg" src="story/power-cut-pov/power-cut-pov.mp4"></video><div class="t"><b>POV: power cut at home</b><span>cozy-room, English</span><span>A POV story about a power cut.</span></div></div>
+</div>
+<h2>Explainer short <small>(explainer)</small></h2>
+<p class="s">A narrated vertical short from a topic, in one of six styles (1080x1920, 25-60 s).</p><div class="g">
+<div class="c"><video controls preload="none" poster="explainer/inside-out/poster.jpg" src="explainer/inside-out/inside-out.mp4"></video><div class="t"><b>What if you swallow gum?</b><span>inside-out (flat 2D x-ray)</span><span>Body and science what-if</span></div></div>
+<div class="c"><video controls preload="none" poster="explainer/deep-dive/poster.jpg" src="explainer/deep-dive/deep-dive.mp4"></video><div class="t"><b>What happens if you hold your breath?</b><span>deep-dive (3D, x-ray bodies)</span><span>Body and science what-if</span></div></div>
+<div class="c"><video controls preload="none" poster="explainer/night-file/poster.jpg" src="explainer/night-file/night-file.mp4"></video><div class="t"><b>The man who jumped out of a plane</b><span>night-file (dark 3D mystery)</span><span>True crime: D.B. Cooper</span></div></div>
+<div class="c"><video controls preload="none" poster="explainer/stick-story/poster.jpg" src="explainer/stick-story/stick-story.mp4"></video><div class="t"><b>What if the power went out for 3 days?</b><span>stick-story (stick figures, step cards)</span><span>Survival steps</span></div></div>
+<div class="c"><video controls preload="none" poster="explainer/paper-atlas/poster.jpg" src="explainer/paper-atlas/paper-atlas.mp4"></video><div class="t"><b>How one bakery burned down London</b><span>paper-atlas (cut paper maps)</span><span>History</span></div></div>
+<div class="c"><video controls preload="none" poster="explainer/tall-tale/poster.jpg" src="explainer/tall-tale/tall-tale.mp4"></video><div class="t"><b>The girl who was mailed to grandma</b><span>tall-tale (2D cartoon people, 3D town)</span><span>Funny true story</span></div></div>
+</div>
+<h2>Edit my recording <small>(editor)</small></h2>
+<p class="s">Cuts silences and mistakes from your own 16:9 talking-head video and adds motion graphics in one of 7 styles.</p><div class="g">
+<div class="c"><div class="p"><b>Before / after of a real talking-head edit</b><br>Pending. Needs a 16:9 talking-head recording and the Whisper model (small.en about 0.5 GB, Hindi large-v3-turbo about 1.6 GB). Not generated yet.</div></div>
+</div>
+<h2>Cinematic AI reel <small>(browser)</small></h2>
+<p class="s">Photoreal Pixar-style story reels made with your own Gemini + Google Flow (Veo) account, stitched locally. Uses generation credits.</p><div class="g">
+<div class="c"><video controls preload="none" poster="reel/tamatar-superstar/poster.jpg" src="reel/tamatar-superstar/tamatar-superstar-part1.mp4"></video><div class="t"><b>Tamatar Superstar, part 1</b><span>kahani (Pixar-style vegetable drama, Hindi)</span><span>Multi-scene story reel made with Veo through the browser engine</span></div></div>
+</div>
+</main></body></html>

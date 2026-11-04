@@ -1,0 +1,10 @@
+{
+  "format": "kahani", "title": "Tamatar Superstar (Part 1)", "style": "pixar", "motion": "veo", "lang": "hi",
+  "transition": "cut",
+  "endcard": { "text": "PART 2", "sub": "फ़ॉलो करें · Follow", "seconds": 2.5 },
+  "items": [
+    { "id": "s01", "label": "तमाटर" },
+    { "id": "s02", "label": "प्याज़ और लहसुन", "audio": "s02-voice.wav", "motion": "push-in", "seconds": 8 },
+    { "id": "s03" }
+  ]
+}
