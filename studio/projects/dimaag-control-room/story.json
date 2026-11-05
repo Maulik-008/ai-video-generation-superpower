@@ -1,0 +1,109 @@
+{
+  "title": "दिमाग़ का कंट्रोल रूम",
+  "slug": "dimaag-control-room",
+  "aspect": "vertical",
+  "resolution": "720p",
+  "look": {
+    "laptop": false,
+    "captions": { "position": "top", "size": 0.05 }
+  },
+  "characters": [
+    {
+      "id": "dimaag", "name": "दिमाग़", "kind": "cube",
+      "look": { "body": "#4a7bd8", "accent": "#a9c4ff" },
+      "voice": { "engine": "auto", "delivery": "natural", "edge": "hi-IN-MadhurNeural", "kokoro": "hm_omega", "language": "hi", "gender": "male", "rate": "+4%" },
+      "captionColor": "#9cc2ff"
+    },
+    {
+      "id": "pet", "name": "पेट", "kind": "blob", "scale": 1.15,
+      "look": { "body": "#6bbf59", "accent": "#d6f0b8" },
+      "voice": { "engine": "auto", "delivery": "natural", "edge": "hi-IN-MadhurNeural", "kokoro": "hm_psi", "language": "hi", "gender": "male", "rate": "-8%", "pitch": "-10Hz" },
+      "captionColor": "#b6f08a"
+    },
+    {
+      "id": "dil", "name": "दिल", "kind": "blob",
+      "look": { "body": "#e0405a", "accent": "#ffb3c0" },
+      "voice": { "engine": "auto", "delivery": "natural", "edge": "hi-IN-SwaraNeural", "kokoro": "hf_alpha", "language": "hi", "gender": "female", "rate": "+8%", "pitch": "+6Hz" },
+      "captionColor": "#ff9aae"
+    },
+    {
+      "id": "jigar", "name": "जिगर", "kind": "blob", "scale": 0.95,
+      "look": { "body": "#a8693c", "accent": "#e6c29f" },
+      "voice": { "engine": "auto", "delivery": "natural", "edge": "hi-IN-SwaraNeural", "kokoro": "hf_beta", "language": "hi", "gender": "female", "rate": "-6%", "pitch": "-8Hz" },
+      "captionColor": "#ffc58f"
+    }
+  ],
+  "shots": [
+    {
+      "id": "s01", "set": "space-stage", "lead": 0.15,
+      "camera": { "type": "two-shot", "move": "push-in" },
+      "reactions": { "pet": "worried", "dil": "worried", "jigar": "tired" },
+      "lines": [
+        { "speaker": "dimaag", "text": "सब ध्यान दें! आज फिर बर्गर आ रहा है!", "emotion": "worried", "action": "point" }
+      ]
+    },
+    {
+      "id": "s02",
+      "camera": { "type": "close", "focus": "pet", "move": "punch-in" },
+      "lines": [
+        { "speaker": "pet", "text": "अरे बाप रे! इसे तोड़ने में मुझे तीन घंटे लगेंगे!", "emotion": "angry", "action": "slump" }
+      ]
+    },
+    {
+      "id": "s03",
+      "camera": { "type": "close", "focus": "jigar", "move": "push-in" },
+      "lines": [
+        { "speaker": "jigar", "text": "मैं पहले से डबल शिफ़्ट पर हूँ! ऊपर से कोल्ड ड्रिंक?", "emotion": "tired", "action": "shake" }
+      ]
+    },
+    {
+      "id": "s04",
+      "camera": { "type": "medium", "focus": "dil", "move": "punch-in" },
+      "sfx": "thud",
+      "lines": [
+        { "speaker": "dil", "text": "मेरी नसों में ट्रैफ़िक जाम! धक-धक-धक!", "emotion": "surprised", "action": "jump" }
+      ]
+    },
+    {
+      "id": "s05",
+      "camera": { "type": "over-shoulder", "focus": "dimaag", "move": "static" },
+      "lines": [
+        { "speaker": "dimaag", "text": "शांत! मैं सँभालता हूँ। सब कंट्रोल में है।", "emotion": "smug", "action": "nod" }
+      ]
+    },
+    {
+      "id": "s06", "transition": "zoom",
+      "camera": { "type": "close", "focus": "dimaag", "move": "push-in" },
+      "lines": [
+        { "speaker": "dimaag", "text": "चीनी का तूफ़ान... मुझे... नींद आ रही है...", "emotion": "tired", "action": "slump" }
+      ]
+    },
+    {
+      "id": "s07",
+      "camera": { "type": "two-shot", "move": "static" },
+      "reactions": { "pet": "worried", "dil": "worried", "jigar": "worried" },
+      "lines": [
+        { "speaker": "pet", "text": "बॉस?", "emotion": "worried" },
+        { "speaker": "dil", "text": "बॉस!", "emotion": "worried", "action": "jump" },
+        { "speaker": "jigar", "text": "बॉस, उठो!", "emotion": "excited", "action": "point" }
+      ]
+    },
+    {
+      "id": "s08",
+      "camera": { "type": "close", "focus": "dimaag", "move": "push-in" },
+      "lines": [
+        { "speaker": "dimaag", "text": "अगली बार बस एक सवाल: क्या ये सच में ज़रूरी है?", "emotion": "confused", "action": "lean-in" }
+      ]
+    },
+    {
+      "id": "s09",
+      "camera": { "type": "wide", "move": "pull-out" },
+      "sfx": "sparkle",
+      "reactions": { "dimaag": "happy", "pet": "happy", "dil": "happy", "jigar": "happy" },
+      "lines": [
+        { "speaker": "dil", "text": "नहीं! बिल्कुल नहीं!", "emotion": "happy", "action": "jump" }
+      ],
+      "hold": 0.8
+    }
+  ]
+}

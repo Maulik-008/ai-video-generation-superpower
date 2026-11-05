@@ -95,3 +95,53 @@ soft) · `zip` (fast exit) · `alarm` (dur, low danger pulse). All soft and roun
 - A moving object crossing a label or counter (the gum zipping through "DAY 3") → give moving things their own lane.
 - A caption landing a word early → put `caps` chunk boundaries on real spoken words; check `capture.mjs check` output.
 - Things hidden under the caption → keep key action above y 1250.
+
+## 8. Talking organs, multi-voice and Hindi (added with `projects/dimaag-junk-food`, "दिमाग़ का कंट्रोल रूम")
+Everything here is additive: the English single-voice examples are unchanged.
+
+**Script (`script.json`)**: any line may carry its own voice. Fallback is the script-level `voice`/`speed`.
+`{ "speaker": "pet", "voice": "hm_psi", "lang": "hi", "speed": 0.88, "pitch": -6, "text": "...", "caps": "...", "gap": 0.25 }`
+- `lang` defaults from the voice's first letter (`a` en-us, `b` en-gb, `h` hi, ...); Hindi Kokoro voices: `hf_alpha`, `hf_beta`
+  (female), `hm_omega`, `hm_psi` (male). `pitch` = semitones, tempo is kept (resampled, so +/-6 is the useful range). The voices are
+  level-matched when a script uses more than one.
+- `voice.py` never merges lines of different voice/lang/speed/pitch into one pass; a sentence ends at `. ? ! ... ।`. Each line keeps
+  exact start/end times; `speaker` (and `voice`) are passed through to `data/lines.json`.
+- `words.py`: Whisper `small.en` is English-only, so for a non-English script it does NOT run and the words are spread inside each
+  line's exact voice time by sound count, with the mid-line pauses (`...`, `।`, `?`, `!`) snapped to the real silences in
+  `narration.wav` (typically within ~0.1 s). Timing is "estimate (snapped)", not Whisper. Needs no download.
+- Mixing is automatic (`mix.py` reads UTF-8). Write numbers as spoken ("तीन").
+
+**Captions in Devanagari**: same `caps` syntax (`|` chunks, one `*` word). Matching uses Unicode letters + combining marks (matras),
+NFC-normalised, so type caps with exactly the spoken spelling (including nukta: ज़, फ़). Inter has no Devanagari, so those words use the
+Windows system font **Nirmala UI Bold** (`C:\Windows\Fonts\Nirmala.ttc`; nothing bundled): 12% larger than Inter, no letter-spacing (it
+would break conjuncts), thickened with a 5 px white stroke, outline 26 px, lifted 8 px, line height 1.2. A 2-3 word chunk shrinks (to 78%)
+to stay on one line before it wraps. Latin words in the same chunk keep Inter. `lib.js`: `fontFor(text, size)`, `hasDeva(text)`;
+`bigText` and `K.pill` pick the font per text. On macOS/Linux install a Devanagari font; the stack falls back to Noto/Mangal/Kohinoor.
+Bare `ctx.font` strings with Inter in a shot must use `fontFor` for Hindi text.
+
+**Talking organs (`kit.js`)**: flat fill + one darker shade + one highlight, no outline, a face with dot eyes + highlight.
+| call | gives you |
+|---|---|
+| `K.organ(kind, o)` / `K.brain` · `K.stomachChar` · `K.heartChar` · `K.liver` | `kind`: `brain` (mauve-pink, the pink family with a distinct tint) · `stomach` (organ pink) · `heart` (red) · `liver` (brown-red). `o = { x, y, s, emo, talk, pop, tilt, sx, sy, look, blink, sweat, t }`, about 240 px wide at `s: 1` |
+| emotions `K.EMO` | `neutral worried angry tired surprised happy sleepy` (brows, eyes, lids, mouth change; `happy`/`surprised` get blush) |
+| `talk` 0..1 | mouth opening (open mouth + tongue). `pop` 0..1 = scale pop (+16%). `sweat` 0..1 = sweat drop; `tilt`/`sy`/`y` = droop; `blink` 0..1 |
+| `K.speech(t, line)` | `{ on, talk, pop }` from the narration clock: mouth flaps on every spoken word of that line, pop decays after the line starts. Feed it straight into `organ()` |
+| `K.speakerPip(x, y, s, color, t)` | coloured bubble with live sound bars and a tail pointing down at the speaker; `K.PIP` = colour per character |
+| `K.xrayBody(o)` | the x-ray body (WHOLE body incl. a see-through skull, one visual mode) with all four organs in place: brain in the head, heart upper chest (viewer's right), stomach below it, liver on the other side. `o = { x, y, s, t, organs: { brain, heart, stomach, liver: {emo, talk, pop, ...} }, only: ['brain'], speaker: 'brain' }` (the pip shows above `speaker`) |
+| `K.ORGAN_AT`, `K.focusOn(name, s, sx, sy)` | organ positions in the man's local coords; `focusOn` returns the man origin that puts an organ at a screen point (fly-ins) |
+| `K.man({... skull, headOrgan, torsoOrgans, over })` | hooks used by `xrayBody`. New head options: `eyes: 'droop'` (+ `lid` 0..1), `mouth: 'talk'` (+ `talk` 0..1), `mouth: 'yawn'` (+ `yawn` 0..1) |
+Props: `K.burger` · `K.fries` · `K.cola(…, fizz)` · `K.table` · `K.sugar` · `K.sweatDrop` · `K.zzz(x, y, s, t)` · `K.trafficJam(x, y, w, t, tube)` (vessel full of red cells).
+
+**Shot pattern for a talking-organ scene** (one visual mode per shot: X-RAY or ROOM, never both):
+```js
+const sp = K.speech(t, 2);                                   // line 2 is the stomach's
+const fly = eo(seg(lt, 0, 0.9)), s = lerp(1.45, 2.5, fly);   // start as the whole body (all organs visible), fly into the speaker
+const [fx, fy] = K.focusOn('stomach', s, 540, 700);
+K.xray(t);
+K.xrayBody({ x: lerp(540, fx, fly), y: lerp(1010, fy, fly), s, t, speaker: 'stomach',
+  organs: { stomach: { emo: 'worried', talk: sp.talk, pop: sp.pop, sweat: 1 }, brain: { emo: 'worried' } } });
+```
+Rules: one organ speaks at a time and is the only one with `talk`; the others react with `emo`; captions carry the Hindi text (no speech
+bubbles). Keep the speaker above y 1250. Extra organs fall into the caption zone when `s` is big: use `only: [...]` or keep `s` below ~1.7
+when the focus is the brain (it sits high). Line shots are 1.5-3.5 s; a slow Hindi line (speed 0.8) can run to ~4.4 s, and one-word
+reactions ("बॉस?") are ~1 s: both are fine, keep the camera moving.

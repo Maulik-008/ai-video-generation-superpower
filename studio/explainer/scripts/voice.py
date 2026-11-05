@@ -6,6 +6,10 @@
 
 script.json: { "voice": "am_michael", "speed": 1.05, "lead": 0.45, "outro": 0.9, "gap": 0.32,
                "lines": [ { "text": "What if you swallow gum?", "caps": "...", "gap": 0.3 }, ... ] }
+Multi-voice / other languages (all optional, per line, falling back to the script-level voice/speed/lang):
+               { "text": "...", "speaker": "pet", "voice": "hm_psi", "lang": "hi", "speed": 0.9, "pitch": -2 }
+  lang defaults from the voice's first letter (a en-us, b en-gb, h hi, ...). pitch = semitones (tempo is kept).
+  Lines with different voice/lang/speed/pitch are NEVER merged into one pass. "speaker" is passed through to lines.json.
 One line = one CUT, not one sentence: a sentence can run across several lines ("It slides down your throat and lands
 in your stomach," / "where acid gets to work on it."). Lines are grouped into whole sentences and each sentence is
 spoken in ONE pass, so the intonation flows naturally; then every cut inside a sentence is found in the audio (snapped
@@ -30,6 +34,9 @@ GOOD = {
     'bf_emma': 'UK female, calm',
 }
 SR = 24000
+LANGS = {'a': 'en-us', 'b': 'en-gb', 'e': 'es', 'f': 'fr-fr', 'h': 'hi', 'i': 'it', 'j': 'ja', 'p': 'pt-br', 'z': 'cmn'}
+GOOD.update({'hf_alpha': 'Hindi female', 'hf_beta': 'Hindi female (2nd)', 'hm_omega': 'Hindi male', 'hm_psi': 'Hindi male (2nd)'})
+SENT_END = re.compile(r'[.?!\u2026\u0964]["\')\u201d]*$')   # . ? ! ... and the Devanagari danda
 
 
 def ensure_models():
@@ -73,22 +80,38 @@ def main():
     if a.download: return
     if not a.project: ap.error('project folder missing')
     from kokoro_onnx import Kokoro
-    P = Path(a.project); S = json.loads((P / 'script.json').read_text())
+    P = Path(a.project); S = json.loads((P / 'script.json').read_text(encoding='utf-8'))
     voice = a.voice or S.get('voice', 'am_michael'); speed = a.speed or S.get('speed', 1.0)
     k = Kokoro(str(KDIR / 'kokoro-v1.0.onnx'), str(KDIR / 'voices-v1.0.bin'))
-    lang = 'en-gb' if voice.startswith('b') else 'en-us'
-    say = lambda text: trim(np.asarray(k.create(text, voice=voice, speed=speed, lang=lang)[0], dtype=np.float64))
-    # group the lines into whole sentences (a line ending in . ? ! closes one; "break": true forces a close)
+
+    def spec(ln):      # (voice, lang, speed, pitch) for one line; falls back to the script level
+        v = ln.get('voice') or voice
+        return (v, ln.get('lang') or S.get('lang') or LANGS.get(v[:1], 'en-us'), float(ln.get('speed') or speed), float(ln.get('pitch') or 0))
+
+    def say(text, sp):
+        v, lang, spd, pitch = sp; f = 2 ** (pitch / 12)
+        x = np.asarray(k.create(text, voice=v, speed=spd / f, lang=lang)[0], dtype=np.float64)
+        if pitch:
+            from scipy.signal import resample_poly
+            x = resample_poly(x, 100, int(round(100 * f)))     # faster playback = higher pitch; speed/f above keeps the tempo
+        return trim(x)
+    specs = [spec(ln) for ln in S['lines']]; multi = len(set(specs)) > 1
+    # group the lines into whole sentences (a line ending in . ? ! closes one; "break": true forces a close);
+    # a change of voice/lang/speed/pitch always closes the group: different speakers are never merged into one pass
     groups, cur = [], []
     for i, ln in enumerate(S['lines']):
         cur.append(i)
-        if re.search(r'[.?!]["\')]*$', ln['text'].strip()) or ln.get('break') or i == len(S['lines']) - 1: groups.append(cur); cur = []
+        last = i == len(S['lines']) - 1
+        if SENT_END.search(ln['text'].strip()) or ln.get('break') or last or specs[i + 1] != specs[i]: groups.append(cur); cur = []
     out = [np.zeros(int(S.get('lead', 0.4) * SR))]; t = len(out[0]) / SR; lines = [None] * len(S['lines'])
     for g in groups:
-        x = say(' '.join(S['lines'][i]['text'] for i in g))
+        sp = specs[g[0]]
+        x = say(' '.join(S['lines'][i]['text'] for i in g), sp)
+        if multi:                                          # even loudness between voices
+            act = x[np.abs(x) > 0.02 * np.abs(x).max()]; x = x * (0.13 / (np.sqrt(np.mean(act ** 2)) + 1e-9)); x = np.clip(x, -0.98, 0.98)
         cuts = [0.0]
         if len(g) > 1:                                    # find each cut inside the sentence
-            lens = np.array([len(say(S['lines'][i]['text'])) for i in g], dtype=float)
+            lens = np.array([len(say(S['lines'][i]['text'], sp)) for i in g], dtype=float)
             pauses = silences(x)
             for c in np.cumsum(lens)[:-1] / lens.sum() * len(x) / SR:
                 near = [p for p in pauses if abs((p[0] + p[1]) / 2 - c) < 0.4]
@@ -98,7 +121,10 @@ def main():
         for j, i in enumerate(g):
             a = 0.0 if j == 0 else cuts[j][1]; b = n if j == len(g) - 1 else cuts[j + 1][0]
             lines[i] = {'i': i, 'text': S['lines'][i]['text'], 'start': round(t + a, 3), 'end': round(t + b, 3)}
-            print(f'{i:2d} {lines[i]["start"]:6.2f}-{lines[i]["end"]:6.2f}  {S["lines"][i]["text"]}', flush=True)
+            for key in ('speaker',): 
+                if S['lines'][i].get(key): lines[i][key] = S['lines'][i][key]
+            if multi: lines[i]['voice'] = specs[i][0]
+            print(f'{i:2d} {lines[i]["start"]:6.2f}-{lines[i]["end"]:6.2f}  {S["lines"][i].get("speaker", ""):7s} {S["lines"][i]["text"]}', flush=True)
         gap = np.zeros(int(float(S['lines'][g[-1]].get('gap', S.get('gap', 0.3))) * SR))
         out += [x, gap]; t += (len(x) + len(gap)) / SR
     outro = np.zeros(int(float(S.get('outro', 0.9)) * SR)); out.append(outro)
@@ -106,8 +132,8 @@ def main():
     (P / 'data').mkdir(exist_ok=True)
     wavfile.write(P / 'data/narration.wav', SR, (y * 32767).astype(np.int16))
     dur = len(y) / SR
-    (P / 'data/lines.json').write_text(json.dumps({'duration': round(dur, 3), 'voice': voice, 'speed': speed, 'lines': lines}, indent=1))
-    print(f'data/narration.wav ({dur:.2f} s, {voice} x{speed}) + data/lines.json. Next: words.py')
+    (P / 'data/lines.json').write_text(json.dumps({'duration': round(dur, 3), 'voice': voice, 'speed': speed, 'lines': lines}, indent=1), encoding='utf-8')
+    print(f'data/narration.wav ({dur:.2f} s, {voice if not multi else "voices: " + ", ".join(sorted({q[0] for q in specs}))} x{speed}) + data/lines.json. Next: words.py')
 
 
 if __name__ == '__main__':

@@ -15,6 +15,14 @@ export const C = {
   leaf: '#5BAE6A', pot: '#C8734A', watch: '#1E2A44',
 };
 
+// ---------- fonts ----------
+// Latin text uses Inter Black (fonts/Inter-Black.otf). Inter has no Devanagari, so Hindi uses the Windows system font
+// "Nirmala UI" Bold (C:/Windows/Fonts/Nirmala.ttc; nothing is bundled or downloaded). Same look: white fill, ink outline.
+export const hasDeva = (s) => /[ऀ-ॿ]/.test(String(s));
+export const DEVA_FONT = '"Nirmala UI", "Noto Sans Devanagari", "Mangal", "Kohinoor Devanagari", sans-serif';
+/** canvas font string for `text` at `size` px (a little larger for Devanagari: its letters sit smaller than Inter's) */
+export const fontFor = (text, size) => (hasDeva(text) ? `700 ${Math.round(size * 1.12)}px ${DEVA_FONT}` : `900 ${size}px Inter`);
+
 // ---------- math ----------
 export const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 export const lerp = (a, b, t) => a + (b - a) * t;
@@ -38,7 +46,7 @@ export function fillAll(color) { ctx.fillStyle = color; ctx.fillRect(-300, -300,
 /** outlined bold text (the caption look), centred at x, y */
 export function bigText(text, x, y, size, fill = C.white, rot = 0, sc = 1) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(sc, sc);
-  ctx.font = `900 ${size}px Inter`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+  ctx.font = fontFor(text, size); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
   ctx.lineWidth = size * 0.2; ctx.strokeStyle = C.ink; ctx.strokeText(text, 0, 0); ctx.fillStyle = fill; ctx.fillText(text, 0, 0);
   ctx.restore();
 }

@@ -15,6 +15,8 @@ Use it when the user wants a narrated faceless short from a **topic** (not a cha
 | `paper-atlas` Paper Atlas | history in cut paper: parchment maps, crimson routes, gold date ribbons, period figures | 30-45 s |
 | `tall-tale` Tall Tale 3D | funny true stories, cons, loopholes: flat 2D cartoon people in a sunny 3D town, camera always moving, one-word captions | 40-60 s |
 
+Multi-voice / Hindi (`inside-out`): per-line `voice`/`lang`/`speed`/`pitch`/`speaker` in `script.json`, Devanagari captions and talking organs: see `styles/inside-out/STYLE.md` section 8. Whisper small.en cannot time Hindi, so words are spread inside the exact voice lines and snapped to pauses (say "estimate" in `notes`).
+
 Which style: body, health, science "what happens if" → `deep-dive` (or `inside-out` for a lighter 2D look) · creepy, unexplained, true crime → `night-file` · survival, life hacks, "here is what you do" → `stick-story` · a historical event, "how X happened" → `paper-atlas` · a funny or clever true story, "this guy did X" → `tall-tale`.
 
 Each style = `EXPLAINER/styles/<style>/style-sheet.png` (the look in one image) + `STYLE.md` (the rules and the engine manual) + `example/` (a complete project that renders as-is). **Read the style's `STYLE.md` in full before planning.**

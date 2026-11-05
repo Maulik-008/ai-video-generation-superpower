@@ -10,11 +10,43 @@ or missed share the time between their matched neighbours, by length. Also write
 No Whisper (not installed, or its model can't download)? After voice.py the line times are exact anyway, so each
 line's words are spread inside it by length, with pauses at commas and full stops (within ~0.1-0.2 s of the speech).
 """
-import argparse, json, re, subprocess
+import argparse, json, re, subprocess, unicodedata
 from difflib import SequenceMatcher
 from pathlib import Path
 
-norm = lambda w: re.sub(r'[^a-z0-9]+', '', w.lower())
+def norm(w):
+    """lower-case letters/digits/combining marks only (works for Latin and Devanagari; matras are marks)"""
+    return ''.join(c for c in unicodedata.normalize('NFC', w).lower() if unicodedata.category(c)[0] in 'LMN')
+
+
+def phonemes(w):
+    """rough length of a word in sounds: letters + vowel signs, without the virama/nukta (Latin: its letters)"""
+    return sum(1 for c in norm(w) if c not in '़्') or 1
+
+
+def english_only(S):
+    langs = {(ln.get('lang') or S.get('lang') or ('en' if (ln.get('voice') or S.get('voice', 'am'))[:1] in 'ab' else 'x')).lower() for ln in S['lines']}
+    return all(l.startswith('en') for l in langs)
+
+
+def pause_bounds(P, lo, hi, need):
+    """the `need` longest pauses of the narration inside [lo, hi] (sorted by time), or None if the audio has fewer"""
+    try:
+        import numpy as np
+        from scipy.io import wavfile
+        sr, x = wavfile.read(P / 'data/narration.wav'); x = x.astype(np.float64) / 32768.0
+        seg = x[int(lo * sr):int(hi * sr)]; hop = int(0.01 * sr); n = len(seg) // hop
+        rms = np.sqrt(np.mean(seg[:n * hop].reshape(n, hop) ** 2, axis=1)); quiet = rms < 0.03 * np.abs(seg).max()
+        runs, st = [], None
+        for f, q in enumerate(quiet):
+            if q and st is None: st = f
+            if (not q or f == n - 1) and st is not None:
+                if (f - st) >= 6 and st > 5 and f < n - 5: runs.append((lo + st * 0.01, lo + f * 0.01))
+                st = None
+        if len(runs) < need: return None
+        return sorted(sorted(runs, key=lambda r: r[0] - r[1])[:need])
+    except Exception:
+        return None
 
 
 def align(script_words, heard, t0, t1):
@@ -38,22 +70,37 @@ def align(script_words, heard, t0, t1):
 
 
 def inline_fallback(P, S):
-    L = json.loads((P / 'data/lines.json').read_text())['lines']; words = []
+    L = json.loads((P / 'data/lines.json').read_text(encoding='utf-8'))['lines']; words = []; snapped = 0
     for i, ln in enumerate(S['lines']):
         toks = [w for w in ln['text'].split() if norm(w)]
-        wts = [len(norm(w)) + 2.5 + (2.5 if w.endswith(',') else 4.5 if re.search(r'[.?!]$', w) and k < len(toks) - 1 else 0) for k, w in enumerate(toks)]
-        lo, hi = L[i]['start'], L[i]['end']; c = lo; tot = sum(wts)
-        for w, wt in zip(toks, wts):
-            d = (hi - lo) * wt / tot; speak = d - (hi - lo) * (wt - len(norm(w)) - 2.5) / tot
-            words.append({'w': w, 'line': i, 's': round(c, 3), 'e': round(c + speak * 0.92, 3)}); c += d
-    (P / 'data/words.json').write_text(json.dumps(words, indent=1))
-    (P / 'data/words.txt').write_text('\n'.join(f"{w['s']:7.2f} {w['e']:7.2f}  L{w['line']:<2d} {w['w']}" for w in words))
-    print(f'data/words.json: {len(words)} words (spread inside the voice line times)')
+        mid = [k for k, w in enumerate(toks[:-1]) if re.search(r'[.?!\u2026\u0964;:]$', w.rstrip('"\')\u201d')) and not w.endswith(',')]   # sentence-ish pauses inside the line
+        lo, hi = L[i]['start'], L[i]['end']
+        pb = pause_bounds(P, lo, hi, len(mid)) if mid else []
+        if mid and pb: snapped += 1
+        # speech spans: between detected pauses when they were found, else the whole line with weighted pauses
+        spans, cur0 = [], 0
+        if mid and pb:
+            edges = [lo] + [e for p in pb for e in p] + [hi]
+            for j, k in enumerate(mid + [len(toks) - 1]): spans.append((cur0, k, edges[2 * j], edges[2 * j + 1])); cur0 = k + 1
+        else: spans.append((0, len(toks) - 1, lo, hi))
+        for (a0, a1, t0, t1) in spans:
+            ws = toks[a0:a1 + 1]
+            wts = [phonemes(w) + 2.5 + (2.5 if w.endswith(',') else (4.5 if (not pb and re.search(r'[.?!…।]$', w.rstrip('"\')”')) and a0 + ws.index(w) < len(toks) - 1) else 0)) for w in ws]
+            c = t0; tot = sum(wts)
+            for w, wt in zip(ws, wts):
+                d = (t1 - t0) * wt / tot; speak = d - (t1 - t0) * (wt - phonemes(w) - 2.5) / tot
+                words.append({'w': w, 'line': i, 's': round(c, 3), 'e': round(c + speak * 0.92, 3)}); c += d
+    (P / 'data/words.json').write_text(json.dumps(words, indent=1), encoding='utf-8')
+    (P / 'data/words.txt').write_text(chr(10).join(f"{w['s']:7.2f} {w['e']:7.2f}  L{w['line']:<2d} {w['w']}" for w in words), encoding='utf-8')
+    print(f'data/words.json: {len(words)} words (spread inside the voice line times; {snapped} lines snapped to detected pauses)')
 
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('project'); ap.add_argument('--audio'); a = ap.parse_args()
-    P = Path(a.project); S = json.loads((P / 'script.json').read_text())
+    P = Path(a.project); S = json.loads((P / 'script.json').read_text(encoding='utf-8'))
+    if not english_only(S) and not a.audio and (P / 'data/lines.json').exists():
+        print('Whisper small.en is English-only: not aligning this non-English script with it')
+        return inline_fallback(P, S)
     try:
         from faster_whisper import WhisperModel
         model = WhisperModel('small.en', device='cpu', compute_type='int8')
@@ -84,7 +131,7 @@ def main():
             ws = [w for w in words if w['line'] == i]; lines.append({'i': i, 'text': ln['text'], 'start': ws[0]['s'], 'end': ws[-1]['e']})
         (P / 'data/lines.json').write_text(json.dumps({'duration': round(dur_audio, 3), 'lines': lines}, indent=1))
     else:   # keep every word inside its line's exact TTS window
-        L = json.loads((P / 'data/lines.json').read_text())['lines']
+        L = json.loads((P / 'data/lines.json').read_text(encoding='utf-8'))['lines']
         for w in words: lo, hi = L[w['line']]['start'], L[w['line']]['end']; w['s'] = round(min(max(w['s'], lo), hi), 3); w['e'] = round(min(max(w['e'], w['s']), hi), 3)
     (P / 'data/words.json').write_text(json.dumps(words, indent=1))
     (P / 'data/words.txt').write_text('\n'.join(f"{w['s']:7.2f} {w['e']:7.2f}  L{w['line']:<2d} {w['w']}" for w in words))

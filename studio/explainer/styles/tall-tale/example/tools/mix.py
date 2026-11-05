@@ -19,8 +19,8 @@ from scipy.io import wavfile
 P = Path(sys.argv[1] if len(sys.argv) > 1 else '.')
 SR = 48000
 rng = np.random.default_rng(11)
-cj = json.loads((P / 'data/cues.json').read_text())
-script = json.loads((P / 'script.json').read_text())
+cj = json.loads((P / 'data/cues.json').read_text(encoding='utf-8'))
+script = json.loads((P / 'script.json').read_text(encoding='utf-8'))
 DUR = float(cj['duration'])
 N = int(DUR * SR) + SR // 10
 

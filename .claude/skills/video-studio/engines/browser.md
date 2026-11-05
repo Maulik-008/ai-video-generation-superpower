@@ -2,6 +2,8 @@
 
 Produces videos by driving the user's own Chrome through the Claude in Chrome extension: a format's planner (for `talkstuff`: the TalkStuff GPT on ChatGPT) writes prompts, Gemini makes one image per item, and Google Flow (Veo) or Grok Imagine animates each image into a clip. It uses the user's own logged-in accounts and generation credits, so it is **not** the default. Use it only when the user asks for it ("use Flow", "use Grok", "use my Gemini/Veo credits", "photoreal", "TalkStuff") or for the `talkstuff` format. For story videos with several characters, voices and camera work, use the `studio` engine instead.
 
+**Flow without the Chrome extension:** if the `flow` MCP server is connected (see the `flow-mcp` skill, `studio/flow-mcp`), prefer its `flow_*` tools for the `--video flow` stages; they drive their own signed-in Chrome and report credit quotes.
+
 Supported formats: [formats/talkstuff.md](../formats/talkstuff.md) (one talking object per clip) and [formats/kahani.md](../formats/kahani.md) (multi-scene Hindi/Urdu/English story reels with recurring characters, Pixar-style or 2D POV, stitched into one reel).
 
 Options of this engine: `--video flow|grok` (default `flow`), `--writer gpt|claude` (per format), `--out <folder>` (default `%USERPROFILE%\Videos\VideoStudio\<YYYY-MM-DD>-<format>-<topic-slug>`).

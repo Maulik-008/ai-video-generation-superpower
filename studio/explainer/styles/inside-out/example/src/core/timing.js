@@ -4,7 +4,8 @@
 // L(i) = line i start · Le(i) = line i end · Wd(word, line) = start of the first word in that line matching
 // the prefix (case/punctuation ignored; throws if it isn't there, so a rewritten script can't silently drift).
 export const T = { dur: 0, lines: [], words: [] };
-const norm = (w) => String(w).toLowerCase().replace(/[^a-z0-9']+/g, '');
+// letters, combining marks (Devanagari matras) and digits only: works for Latin and Devanagari
+export const norm = (w) => String(w).normalize('NFC').toLowerCase().replace(/[^\p{L}\p{M}\p{N}']+/gu, '');
 
 export async function loadTiming() {
   const get = async (f) => { const r = await fetch(f, { cache: 'no-store' }); if (!r.ok) throw new Error(`missing ${f}: run voice.py + words.py (or estimate.py)`); return r.json(); };
